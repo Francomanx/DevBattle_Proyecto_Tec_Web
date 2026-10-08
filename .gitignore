@@ -1,0 +1,23 @@
+node_modules
+.pnpm-store
+
+# env
+.env
+.env.*
+!.env.example
+
+# next
+.next
+out
+build
+next-env.d.ts
+
+# prisma client generado
+packages/db/src/generated
+
+# misc
+*.tsbuildinfo
+.DS_Store
+*.pem
+npm-debug.log*
+.vercel

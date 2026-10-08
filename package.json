@@ -1,0 +1,25 @@
+{
+  "name": "devbattle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma web de retos de programación",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @devbattle/web --filter @devbattle/api dev",
+    "dev:web": "pnpm --filter @devbattle/web dev",
+    "dev:api": "pnpm --filter @devbattle/api dev",
+    "build": "pnpm --filter @devbattle/db generate && pnpm -r --filter \"./apps/*\" build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @devbattle/db generate",
+    "db:migrate": "pnpm --filter @devbattle/db migrate:dev",
+    "db:deploy": "pnpm --filter @devbattle/db migrate:deploy",
+    "db:seed": "pnpm --filter @devbattle/db seed",
+    "db:studio": "pnpm --filter @devbattle/db studio",
+    "postinstall": "pnpm --filter @devbattle/db generate"
+  }
+}
