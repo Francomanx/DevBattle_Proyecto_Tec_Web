@@ -18,11 +18,11 @@ function getQueryClient() {
 }
 
 function getApiUrl() {
-  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window !== "undefined") {
+    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
     return `${window.location.protocol}//${window.location.hostname}:3001`;
   }
-  return "http://localhost:3001";
+  return process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 }
 
 export function TRPCReactProvider({ children }: { children: React.ReactNode }) {
@@ -33,6 +33,8 @@ export function TRPCReactProvider({ children }: { children: React.ReactNode }) {
         httpBatchLink({
           url: `${getApiUrl()}/api/trpc`,
           transformer: superjson,
+          fetch: (url, options) =>
+            fetch(url, { ...options, credentials: "include" }),
         }),
       ],
     }),

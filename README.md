@@ -20,26 +20,33 @@ Monorepo con pnpm workspaces. El frontend importa **solo el tipo** `AppRouter` d
 
 ## Puesta en marcha
 
+Con Docker Desktop iniciado y desde la raíz del repositorio, copia el archivo de entorno y levanta todos los servicios:
+
 ```bash
 cp .env.example .env
-pnpm install
-pnpm db:up
-pnpm db:migrate
-pnpm db:seed
-pnpm dev
+docker compose up --build
 ```
+
+En PowerShell, usa `Copy-Item .env.example .env` en lugar de `cp`. Compose inicia PostgreSQL, ejecuta las migraciones y el seed, y después levanta la API y la web. Abre http://localhost:3000; la API queda disponible en http://localhost:3001.
+
+Para detener los servicios, pulsa `Ctrl+C`; para eliminarlos, ejecuta `docker compose down`. Los datos de PostgreSQL permanecen en un volumen de Docker.
+
+## Autenticación (API)
+
+- Registro: mutation tRPC `auth.register` con `{ name, email, password }`. El nombre admite 2–80 caracteres y la contraseña 8–72. El email se normaliza a minúsculas; se guarda un hash bcrypt, nunca la contraseña.
+- Login: Auth.js Credentials en `POST /api/auth/callback/credentials`. Primero solicita el token CSRF con `GET /api/auth/csrf`; envía `csrfToken`, `email`, `password`, `callbackUrl` y `json=true` como formulario, manteniendo `credentials: "include"` para guardar la cookie de sesión.
+- Sesión: `GET /api/auth/session` devuelve el usuario autenticado. La mutation `auth.me` de tRPC es privada y responde `UNAUTHORIZED` si no se envía una sesión válida.
+
+Configura `AUTH_SECRET` en `.env` para despliegues; Compose usa un valor de desarrollo local si no está definido.
 
 ## Scripts Útiles
 
-| Script | Descripción |
+| Comando | Descripción |
 | --- | --- |
-| `pnpm dev` / `dev:web` / `dev:api` | Desarrollo |
-| `pnpm build` | Genera Prisma y compila ambas apps |
-| `pnpm lint` / `pnpm typecheck` | Calidad |
-| `pnpm db:up` / `db:down` | Postgres en Docker |
-| `pnpm db:migrate` | `prisma migrate dev` |
-| `pnpm db:deploy` | `prisma migrate deploy` (producción) |
-| `pnpm db:generate` / `db:seed` / `db:studio` | Cliente, seed, Prisma Studio |
+| `docker compose up --build` | Inicia DB, migraciones, API y web |
+| `docker compose down` | Detiene y elimina los contenedores |
+| `docker compose logs -f web api` | Muestra los logs de la aplicación |
+| `docker compose down -v` | También elimina los datos de PostgreSQL |
 
 ## Estructura
 
