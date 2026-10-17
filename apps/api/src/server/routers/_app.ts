@@ -1,12 +1,11 @@
 import { createCallerFactory, createTRPCRouter } from "../trpc";
-import { challengeRouter } from "./challenge";
+import { competitionRouter } from "./competition";
 import { healthRouter } from "./health";
 
 export const appRouter = createTRPCRouter({
   health: healthRouter,
-  challenge: challengeRouter,
+  competition: competitionRouter,
 });
-
 
 export type AppRouter = typeof appRouter;
 
