@@ -7,6 +7,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ChallengeStatus {
+  active
+  vote
+  completed
+}
+
 enum Difficulty {
   EASY
   MEDIUM
@@ -22,5 +28,23 @@ model Challenge {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
+// -- NUEVO -- //
+
+  status      ChallengeStatus @default(active)
+  activeDeadLine  DateTime?
+  voteDeadLine    DateTime?
+  completedAt     DateTime?
+
+  hostId          String
+  //host            User        POR VERIFICAR
+
+  formats         Format[]
+
   @@index([difficulty])
+}
+
+model Format {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  challenges  Challenge[]
 }
