@@ -11,7 +11,7 @@ function resolveOrigin(req: Request) {
 const corsHeaders = (req: Request): Record<string, string> => ({
   "Access-Control-Allow-Origin": resolveOrigin(req),
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "content-type, trpc-accept, x-trpc-source",
+  "Access-Control-Allow-Headers": "content-type, trpc-accept, x-trpc-source, x-auth-return-redirect",
   "Access-Control-Allow-Credentials": "true",
   Vary: "Origin",
 });

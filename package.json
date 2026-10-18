@@ -20,6 +20,6 @@
     "db:deploy": "pnpm --filter @devbattle/db migrate:deploy",
     "db:seed": "pnpm --filter @devbattle/db seed",
     "db:studio": "pnpm --filter @devbattle/db studio",
-    "postinstall": "pnpm --filter @devbattle/db generate"
+    "postinstall": "corepack pnpm --filter @devbattle/db generate"
   }
 }

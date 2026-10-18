@@ -1,14 +1,11 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: devbattle-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-devbattle}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devbattle}
       POSTGRES_DB: ${POSTGRES_DB:-devbattle}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,6 +13,61 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-devbattle}:${POSTGRES_PASSWORD:-devbattle}@db:5432/${POSTGRES_DB:-devbattle}?schema=public
+    command: ["sh", "-c", "corepack pnpm --filter @devbattle/db migrate:deploy && corepack pnpm --filter @devbattle/db seed"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-devbattle}:${POSTGRES_PASSWORD:-devbattle}@db:5432/${POSTGRES_DB:-devbattle}?schema=public
+      WEB_URL: http://localhost:${WEB_PORT:-3000}
+      API_INTERNAL_URL: http://api:3001
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3001}
+      AUTH_SECRET: ${AUTH_SECRET:-devbattle-local-secret-change-before-deploy}
+      NODE_ENV: development
+    command: ["corepack", "pnpm", "--filter", "@devbattle/api", "dev", "--hostname", "0.0.0.0"]
+    ports:
+      - "${API_PORT:-3001}:3001"
+    volumes:
+      - ./apps/api/src:/workspace/apps/api/src
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      API_INTERNAL_URL: http://api:3001
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3001}
+      NODE_ENV: development
+    command: ["corepack", "pnpm", "--filter", "@devbattle/web", "dev", "--hostname", "0.0.0.0"]
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - ./apps/web/src:/workspace/apps/web/src
+      - ./apps/api/src:/workspace/apps/api/src
+    depends_on:
+      api:
+        condition: service_started
 
 volumes:
   db_data:
