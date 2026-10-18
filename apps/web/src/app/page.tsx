@@ -1,21 +1,23 @@
-import { CompetitionList } from "@/components/competition-list";
+"use client";
+
+import { CompetitionGrid } from "@/components/competition-grid";
 
 export default function Home() {
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-16">
-      <header className="mb-10">
-        <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">
-          DevBattle
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+      {/* Header Banner */}
+      <header className="space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+          Bienvenido Usuario!
         </h1>
-        <p className="mt-2 text-base text-zinc-600 dark:text-zinc-400">
-          Plataforma web de retos y competencias de programación para desarrolladores de todo el mundo.
+        <p className="text-sm text-slate-400">
+          Compite, Construye y Demuestra tu Talento
         </p>
       </header>
-      <section>
-        <h2 className="text-xl font-semibold mb-6 text-zinc-800 dark:text-zinc-200">
-          Competencias Disponibles
-        </h2>
-        <CompetitionList />
+
+      {/* Challenges Section with Filter Tabs & Cards Grid */}
+      <section className="pt-2">
+        <CompetitionGrid />
       </section>
     </main>
   );

@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   description: "Plataforma web de retos de programación",
 };
 
+import { AuthProvider } from "@/context/auth-context";
+import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -25,8 +29,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <TRPCReactProvider>{children}</TRPCReactProvider>
+      <body className="min-h-full flex flex-col bg-[#090E1A] text-slate-100">
+        <TRPCReactProvider>
+          <AuthProvider>
+            <Navbar />
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </AuthProvider>
+        </TRPCReactProvider>
       </body>
     </html>
   );

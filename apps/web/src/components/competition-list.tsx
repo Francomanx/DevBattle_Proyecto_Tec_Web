@@ -1,24 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
 
 const statusBadges = {
-  DRAFT: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  ACTIVE: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  VOTING: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-  COMPLETED: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  DRAFT: "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+  ACTIVE: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+  VOTING: "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+  COMPLETED: "bg-purple-500/20 text-purple-300 border border-purple-500/30",
 } as const;
 
 export function CompetitionList() {
   const trpc = useTRPC();
   const { data, isPending, error } = useQuery(trpc.competition.list.queryOptions());
 
-  if (isPending) return <p className="text-zinc-500">Cargando competencias…</p>;
+  if (isPending) return <p className="text-slate-400">Cargando competencias…</p>;
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300">
+      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">
         <p className="font-medium">No se pudo conectar con la API:</p>
         <p className="text-sm mt-1">{error.message}</p>
       </div>
@@ -27,8 +28,12 @@ export function CompetitionList() {
 
   if (data.length === 0) {
     return (
-      <p className="text-zinc-500">
-        Todavía no hay competencias activas. Ejecutá <code className="font-mono text-xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded">pnpm db:seed</code>.
+      <p className="text-slate-400">
+        Todavía no hay competencias activas. Haz clic en{" "}
+        <Link href="/competitions/create" className="text-orange-400 underline font-semibold">
+          Crear Reto
+        </Link>{" "}
+        para crear la primera.
       </p>
     );
   }
@@ -38,53 +43,65 @@ export function CompetitionList() {
       {data.map((competition) => (
         <article
           key={competition.id}
-          className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
+          className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-md transition hover:border-[#2C426D] hover:shadow-xl"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            <Link
+              href={`/competitions/${competition.id}`}
+              className="text-xl font-bold tracking-tight text-white hover:text-orange-400 transition"
+            >
               {competition.title}
-            </h2>
+            </Link>
             <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadges[competition.status] ?? statusBadges.ACTIVE
-                }`}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                statusBadges[competition.status] ?? statusBadges.ACTIVE
+              }`}
             >
               {competition.status}
             </span>
           </div>
 
-          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-3 text-sm text-slate-300 line-clamp-3">
             {competition.description}
           </p>
 
-          <div className="mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500 dark:bg-zinc-900/60 dark:text-zinc-400">
-            <span className="font-semibold text-zinc-700 dark:text-zinc-300">Reglas: </span>
+          <div className="mt-4 rounded-xl bg-[#0A101D] border border-[#1A2640] p-3 text-xs text-slate-400">
+            <span className="font-semibold text-slate-200">Reglas: </span>
             {competition.rules}
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-zinc-100 pt-4 text-xs text-zinc-500 dark:border-zinc-800/80 dark:text-zinc-400">
+          <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-[#1A2640] pt-4 text-xs text-slate-400">
             <div>
-              <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+              <span className="font-semibold text-slate-200">
                 {competition._count.participants}
               </span>{" "}
               participantes
             </div>
             <div>
-              <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+              <span className="font-semibold text-slate-200">
                 {competition._count.projects}
               </span>{" "}
               proyectos postulados
             </div>
             <div>
-              <span className="font-semibold text-zinc-700 dark:text-zinc-200">
+              <span className="font-semibold text-slate-200">
                 {competition.metrics.length}
               </span>{" "}
               métricas
             </div>
             <div className="ml-auto">
               Cierre de entrega:{" "}
-              <time className="font-medium text-zinc-700 dark:text-zinc-200">
+              <time className="font-medium text-slate-200">
                 {new Date(competition.submissionDeadline).toLocaleDateString("es-ES")}
               </time>
+            </div>
+            <div>
+              <Link
+                href={`/competitions/${competition.id}`}
+                className="text-xs font-semibold text-orange-400 hover:text-orange-300 underline"
+              >
+                Ver detalle →
+              </Link>
             </div>
           </div>
         </article>

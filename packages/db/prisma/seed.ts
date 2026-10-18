@@ -50,6 +50,17 @@ async function main() {
     },
   });
 
+  const userLuis = await prisma.user.create({
+    data: {
+      username: "luis_dev",
+      email: "luis@devbattle.com",
+      passwordHash: "hash_luis_secret_123",
+      description: "Organizador principal de DevBattle y creador de retos.",
+      githubUrl: "https://github.com/luis-dev",
+      competitionsWon: 3,
+    },
+  });
+
   console.log("Creando competencias...");
   const compAlgoritmos = await prisma.competition.create({
     data: {
@@ -74,6 +85,48 @@ async function main() {
       status: CompetitionStatus.VOTING,
       submissionDeadline: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // finalizó hace 2 días
       votingDeadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // +3 días para votar
+    },
+  });
+
+  const remainingTime = new Date(Date.now() + (1 * 24 * 60 + 19 * 60 + 2) * 60 * 1000);
+  const votingTime = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
+
+  const compFb2 = await prisma.competition.create({
+    data: {
+      title: "Clon de Facebook 2",
+      description: "Recrea la experiencia del feed, junto al panel de amigos.",
+      rules: "1. Componentes en React modernos. 2. Feed funcional con posts y likes. 3. Panel de amigos interactivo.",
+      fileFormat: "zip",
+      viewCount: 240,
+      status: CompetitionStatus.ACTIVE,
+      submissionDeadline: remainingTime,
+      votingDeadline: votingTime,
+    },
+  });
+
+  const compFb3 = await prisma.competition.create({
+    data: {
+      title: "Clon de Facebook 3",
+      description: "Recrea la experiencia del feed, junto al panel de amigos.",
+      rules: "1. Componentes en React modernos. 2. Feed funcional con posts y likes. 3. Panel de amigos interactivo.",
+      fileFormat: "zip",
+      viewCount: 310,
+      status: CompetitionStatus.ACTIVE,
+      submissionDeadline: remainingTime,
+      votingDeadline: votingTime,
+    },
+  });
+
+  const compFb4 = await prisma.competition.create({
+    data: {
+      title: "Clon de Facebook 4",
+      description: "Recrea la experiencia del feed, junto al panel de amigos.",
+      rules: "1. Componentes en React modernos. 2. Feed funcional con posts y likes. 3. Panel de amigos interactivo.",
+      fileFormat: "link",
+      viewCount: 420,
+      status: CompetitionStatus.ACTIVE,
+      submissionDeadline: remainingTime,
+      votingDeadline: votingTime,
     },
   });
 
