@@ -214,6 +214,18 @@ model Group {
   description String?
   createdAt   DateTime @default(now())
 
+// -- NUEVO -- //
+
+  status      ChallengeStatus @default(active)
+  activeDeadLine  DateTime?
+  voteDeadLine    DateTime?
+  completedAt     DateTime?
+
+  hostId          String
+  //host            User        POR VERIFICAR
+
+  formats         Format[]
+
   members  GroupMember[]
   messages Message[]
 
@@ -245,4 +257,10 @@ model Notification {
 
   @@index([userId])
   @@map("notifications")
+}
+
+model Format {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  challenges  Challenge[]
 }
