@@ -7,6 +7,7 @@ export const appRouter = createTRPCRouter({
   auth: authRouter,
   health: healthRouter,
   competition: competitionRouter,
+  challenge: competitionRouter,
 });
 
 export type AppRouter = typeof appRouter;

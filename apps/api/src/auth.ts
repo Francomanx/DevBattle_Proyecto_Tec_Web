@@ -9,8 +9,16 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
+const authSecret =
+  process.env.AUTH_SECRET ??
+  process.env.NEXTAUTH_SECRET ??
+  "devbattle-local-secret-change-before-deploy";
+if (!process.env.AUTH_SECRET) {
+  process.env.AUTH_SECRET = authSecret;
+}
+
 export const { handlers, auth } = NextAuth({
-  secret: process.env.AUTH_SECRET,
+  secret: authSecret,
   trustHost: true,
   session: { strategy: "jwt" },
   providers: [
@@ -30,17 +38,25 @@ export const { handlers, auth } = NextAuth({
           return null;
         }
 
-        return { id: user.id, email: user.email, name: user.name };
+        return { id: user.id, email: user.email, name: user.username };
       },
     }),
   ],
   callbacks: {
     jwt({ token, user }) {
-      if (user) token.sub = user.id;
+      if (user) {
+        token.sub = user.id;
+        token.name = user.name;
+      }
       return token;
     },
     session({ session, token }) {
-      if (session.user && token.sub) session.user.id = token.sub;
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
+        if (token.name) {
+          session.user.name = token.name;
+        }
+      }
       return session;
     },
   },

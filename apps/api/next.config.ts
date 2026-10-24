@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
     ...(process.env.ALLOWED_DEV_ORIGINS?.split(",").map((h) => h.trim()).filter(Boolean) ?? []),
   ],
   transpilePackages: ["@devbattle/db"],
+  experimental: {
+    agentUpgrade: "security",
+  },
 };
 
 export default nextConfig;

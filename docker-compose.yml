@@ -8,6 +8,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-devbattle}
     volumes:
       - db_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-devbattle} -d $${POSTGRES_DB:-devbattle}"]
       interval: 5s
