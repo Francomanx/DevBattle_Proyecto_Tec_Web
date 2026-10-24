@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 
 export function Navbar() {
-  const { user, isAuthenticated, login, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -55,7 +55,9 @@ export function Navbar() {
           <div className="h-6 w-px bg-[#1E2D4A]" />
 
           {/* User profile / session trigger */}
-          {isAuthenticated && user ? (
+          {isLoading ? (
+            <span className="text-xs text-slate-400">Comprobando sesión…</span>
+          ) : isAuthenticated && user ? (
             <div className="relative">
               <button
                 type="button"
@@ -83,9 +85,6 @@ export function Navbar() {
                   <div className="px-3 py-2 border-b border-[#1E2D4A] mb-1">
                     <p className="text-sm font-semibold text-white">{user.name}</p>
                     <p className="text-xs text-slate-400">@{user.username}</p>
-                    <span className="mt-1 inline-block rounded bg-orange-500/20 px-1.5 py-0.5 text-[10px] font-medium text-orange-400">
-                      Rol: {user.role ?? "HOST"}
-                    </span>
                   </div>
                   <button
                     type="button"
@@ -101,13 +100,12 @@ export function Navbar() {
               )}
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => login()}
+            <Link
+              href="/login"
               className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-500/20"
             >
-              Iniciar sesión como Luis Dev
-            </button>
+              Iniciar sesión / Crear cuenta
+            </Link>
           )}
         </div>
       </div>

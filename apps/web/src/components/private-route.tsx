@@ -8,7 +8,7 @@ interface PrivateRouteProps {
 }
 
 export function PrivateRoute({ children }: PrivateRouteProps) {
-  const { isAuthenticated, isLoading, login } = useAuth();
+  const { isAuthenticated, isLoading, authError, refreshSession } = useAuth();
 
   if (isLoading) {
     return (
@@ -20,6 +20,25 @@ export function PrivateRoute({ children }: PrivateRouteProps) {
       </div>
     );
   }
+
+  //para mostrar errores de conexion a la sesion
+  if (authError) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <p role="alert" className="text-red-300">
+          {authError}
+        </p>
+        <button
+          type="button"
+          onClick={() => void refreshSession()}
+          className="mt-4 rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white"
+        >
+          Volver a comprobar
+        </button>
+      </div>
+    );
+  } //esto diferencia una sesion no iniciada de un problema al comunicarse con la API
+  
 
   if (!isAuthenticated) {
     return (
@@ -50,13 +69,12 @@ export function PrivateRoute({ children }: PrivateRouteProps) {
           </p>
 
           <div className="mt-6 flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => login()}
+            <Link
+              href="/login"
               className="w-full rounded-xl bg-[#FF6B00] px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-[#E05E00]"
             >
-              Iniciar sesión como Luis Dev (Host)
-            </button>
+              Iniciar sesión o crear cuenta
+            </Link>
             <Link
               href="/"
               className="rounded-xl border border-[#1E2D4A] bg-[#131E35] px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-[#1A2A4A] hover:text-white"
