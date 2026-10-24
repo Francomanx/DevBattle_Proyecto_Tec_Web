@@ -12,6 +12,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #111827;
+    --foreground: #ededed;
+  }
+}
+
 body {
   min-height: 100vh;
   margin: 0;
