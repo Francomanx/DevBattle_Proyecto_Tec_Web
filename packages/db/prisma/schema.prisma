@@ -81,6 +81,7 @@ model Competition {
   description        String
   rules              String
   fileFormat         String?
+  tags               String[]          @default([])
   viewCount          Int               @default(0)
   status             CompetitionStatus @default(ACTIVE)
   submissionDeadline DateTime
