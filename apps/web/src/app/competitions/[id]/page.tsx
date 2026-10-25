@@ -95,9 +95,13 @@ function CompetitionDetailContent() {
           {hostParticipant && (
             <div className="flex items-center gap-2 rounded-lg bg-[#0D1527] border border-[#1E2D4A] px-3 py-1.5 text-xs">
               <span className="text-slate-400">Host de la competencia:</span>
-              <strong className="text-orange-400 font-semibold">
+              {/* cambie el texto para que ahora sea un enlace al perfil del host */}
+              <Link
+                href={`/usuarios/${encodeURIComponent(hostParticipant.user.username)}`}
+                className="font-semibold text-orange-400 hover:text-orange-300"
+              >
                 @{hostParticipant.user.username}
-              </strong>
+              </Link>
               <span className="rounded bg-orange-500/20 px-1.5 py-0.5 text-[10px] font-bold text-orange-300">
                 {hostParticipant.role}
               </span>

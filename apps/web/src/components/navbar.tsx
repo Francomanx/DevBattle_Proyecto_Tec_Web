@@ -83,7 +83,14 @@ export function Navbar() {
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[#1E2D4A] bg-[#111A2E] p-2 shadow-xl z-50">
                   <div className="px-3 py-2 border-b border-[#1E2D4A] mb-1">
-                    <p className="text-sm font-semibold text-white">{user.name}</p>
+                    {/* para mostrar el perfil del usuario, se utiliza un link que redirige a la pagina de perfil del usuario */}
+                    <Link
+                      href={`/usuarios/${encodeURIComponent(user.username)}`}
+                      onClick={() => setMenuOpen(false)}
+                      className="text-sm font-semibold text-white hover:text-orange-300"
+                    >
+                      Ver mi perfil
+                    </Link>
                     <p className="text-xs text-slate-400">@{user.username}</p>
                   </div>
                   <button
