@@ -4,6 +4,9 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { ChallengeList } from "@/components/challenge-list";
 import { useTRPC } from "@/trpc/client";
+//imports para el manejo de la sesion real
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 
 type AuthSession = {
   user: {
@@ -93,6 +96,8 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
 }
 
 export function AuthGate() {
+  const router = useRouter();
+  const { refreshSession } = useAuth();
   const trpc = useTRPC();
   const registerMutation = useMutation(trpc.auth.register.mutationOptions());
   const [mode, setMode] = useState<AuthMode>("login");
@@ -108,6 +113,7 @@ export function AuthGate() {
 
   useEffect(() => {
     let active = true;
+    //aqui se comprueba la sesion
     readSession()
       .then((value) => {
         if (active) setSession(value?.user ? value : null);
@@ -122,6 +128,12 @@ export function AuthGate() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (session?.user) {
+      router.replace("/");
+    }
+  }, [router, session]);
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
@@ -140,7 +152,10 @@ export function AuthGate() {
         await registerMutation.mutateAsync({ name, email, password });
         setNotice("Cuenta creada. Iniciando sesión...");
       }
-      setSession(await signIn(email, password));
+      const signedInSession = await signIn(email, password);
+      await refreshSession();
+      setSession(signedInSession);
+      router.replace("/");
     } catch (submitError) {
       setError(errorMessage(submitError));
     } finally {
@@ -153,6 +168,7 @@ export function AuthGate() {
     setIsSigningOut(true);
     try {
       await signOut();
+      await refreshSession();
       setSession(null);
       setMode("login");
       setPassword("");
