@@ -128,6 +128,7 @@ export const challengeRouter = createTRPCRouter({
           difficulty: "MEDIUM" as const,
           status: frontendStatus,
           formats: parsedFormats,
+          tags: comp.tags,
           deadline: deadline,
           host: hostName,
           participantCount: comp._count.participants,
