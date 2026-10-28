@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { useTRPC } from "@/trpc/client";
@@ -16,11 +16,12 @@ const statusStyles: Record<string, string> = {
   VOTING: "border-blue-500/30 bg-blue-500/10 text-blue-300",
   COMPLETED: "border-purple-500/30 bg-purple-500/10 text-purple-300",
 };
-//funcion principal de la pagina de perfil de usuario
-export default function UserProfilePage() {
-    //esta constante obtiene el nombre de usuario de la URL y 
-    //lo utiliza para hacer una consulta a la API para obtener
-    //los datos de perfil del usuario correspondiente.
+
+// funcion interna de la pagina de perfil
+function UserProfileContent() {
+  //esta constante obtiene el nombre de usuario de la URL y 
+  //lo utiliza para hacer una consulta a la API para obtener
+  //los datos de perfil del usuario correspondiente.
   const params = useParams<{ username: string }>();
   const username = params.username;
   const trpc = useTRPC();
@@ -30,7 +31,7 @@ export default function UserProfilePage() {
   const { data, isPending, error } = useQuery(
     trpc.profile.byUsername.queryOptions({ username })
   );
-//si la api esta cargando, se muestra un mensaje de carga
+  //si la api esta cargando, se muestra un mensaje de carga
   if (isPending) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-16 text-center text-slate-400">
@@ -38,7 +39,7 @@ export default function UserProfilePage() {
       </main>
     );
   }
-//si hay un error al cargar los datos del perfil, se muestra un mensaje de error
+  //si hay un error al cargar los datos del perfil, se muestra un mensaje de error
   if (error) {
     const notFound = error.data?.code === "NOT_FOUND";
     return (
@@ -62,14 +63,14 @@ export default function UserProfilePage() {
       </main>
     );
   }
-//si no hay datos de perfil, no se muestra nada
+  //si no hay datos de perfil, no se muestra nada
   if (!data) return null;
-//en el caso de que se carguen los datos del perfil,
-//se muestra la informacion del usuario, incluyendo su nombre de usuario,
-//descripcion, enlaces a su perfil de GitHub, y estadisticas de su
-//actividad en la plataforma, como competencias hosteadas, competencias
-//realizadas como desarrollador y proyectos entregados. Tambien
-//se muestran pestañas para filtrar la actividad del usuario por tipo (host, dev, projects).
+  //en el caso de que se carguen los datos del perfil,
+  //se muestra la informacion del usuario, incluyendo su nombre de usuario,
+  //descripcion, enlaces a su perfil de GitHub, y estadisticas de su
+  //actividad en la plataforma, como competencias hosteadas, competencias
+  //realizadas como desarrollador y proyectos entregados. Tambien
+  //se muestran pestañas para filtrar la actividad del usuario por tipo (host, dev, projects).
   const isOwnProfile = currentUser?.id === data.user.id;
   const hasActivity =
     data.hostedCompetitions.length > 0 ||
@@ -162,11 +163,10 @@ export default function UserProfilePage() {
                   role="tab"
                   aria-selected={activeTab === tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                    activeTab === tab.id
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === tab.id
                       ? "bg-orange-500 text-white"
                       : "text-slate-400 hover:bg-[#1A2640] hover:text-white"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -255,9 +255,8 @@ function CompetitionRow({
     >
       <span className="font-semibold text-white">{title}</span>
       <span
-        className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-          statusStyles[status] ?? "border-slate-600 text-slate-300"
-        }`}
+        className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status] ?? "border-slate-600 text-slate-300"
+          }`}
       >
         {status}
       </span>
@@ -267,4 +266,18 @@ function CompetitionRow({
 
 function EmptyTab({ message }: { message: string }) {
   return <p className="py-8 text-center text-sm text-slate-400">{message}</p>;
+}
+
+export default function UserProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-6xl px-4 py-16 text-center text-slate-400">
+          Cargando perfil…
+        </main>
+      }
+    >
+      <UserProfileContent />
+    </Suspense>
+  );
 }

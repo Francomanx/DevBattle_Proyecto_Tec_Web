@@ -250,15 +250,21 @@ export function CreateCompetitionForm() {
         };
       });
 
+      if (!user?.id) {
+        setErrorMessage("Debes iniciar sesión para crear una competencia.");
+        return;
+      }
+
       const result = await createMutation.mutateAsync({
         title: title.trim(),
         description: description.trim(),
         rules: rules.trim(),
         fileFormat: selectedFormats.join(", "),
+        tags: selectedCategories,
         submissionDeadline: new Date(submissionDeadline),
         votingDeadline: new Date(votingDeadline),
         metrics: metricsDict,
-        userId: user?.id ?? "luis_dev",
+        userId: user.id,
       });
 
       const competitionId = result.competitionId || result.id;
@@ -283,15 +289,23 @@ export function CreateCompetitionForm() {
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-6">
       {/* Page Header Banner */}
-      <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 sm:p-8 shadow-xl">
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-          Crear nueva competencia de programación
-        </h1>
-        <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">
-          Define las directrices, métricas de evaluación objetivas y subjetivas,
-          y el cronograma para tu hackathon o reto técnico de alto impacto. Así
-          como los rangos de evaluaciones y fechas.
-        </p>
+      <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 sm:p-8 shadow-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            Crear nueva competencia de programación
+          </h1>
+          <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">
+            Define las directrices, métricas de evaluación objetivas y subjetivas,
+            y el cronograma para tu hackathon o reto técnico de alto impacto. Así
+            como los rangos de evaluaciones y fechas.
+          </p>
+        </div>
+        {user && (
+          <div className="flex-shrink-0 self-start sm:self-center rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-2.5 text-xs text-orange-200">
+            <span className="text-slate-400 block text-[10px] uppercase font-semibold">Creador / Host asignado</span>
+            <span className="font-bold text-white text-sm">@{user.username}</span>
+          </div>
+        )}
       </div>
 
       {/* Error Alert if submit attempted with errors */}

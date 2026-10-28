@@ -21,3 +21,4 @@ packages/db/src/generated
 *.pem
 npm-debug.log*
 .vercel
+AGENTS.md

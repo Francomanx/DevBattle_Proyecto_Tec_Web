@@ -84,6 +84,7 @@ export const competitionRouter = createTRPCRouter({
         description: z.string().min(150, "La descripción debe tener al menos 150 caracteres"),
         rules: z.string().min(1, "Las reglas no pueden estar vacías"),
         fileFormat: z.string().optional(),
+        tags: z.array(z.string()).optional(),
         submissionDeadline: z.coerce.date(),
         votingDeadline: z.coerce.date(),
         metrics: z
@@ -103,20 +104,32 @@ export const competitionRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      // Crear competencia con estado DRAFT
-      const competition = await ctx.prisma.competition.create({
-        data: {
-          title: input.title,
-          description: input.description,
-          rules: input.rules,
-          fileFormat: input.fileFormat,
-          submissionDeadline: input.submissionDeadline,
-          votingDeadline: input.votingDeadline,
-          status: "DRAFT",
-        },
-      });
+      // Priorizar la sesión autenticada; permitir input.userId si se proporciona explícitamente
+      const targetUserId = ctx.session?.user?.id ?? input.userId;
+      if (!targetUserId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Debes iniciar sesión para crear una competencia.",
+        });
+      }
 
-      // Guardar métricas asociadas
+      let hostUser = await ctx.prisma.user.findUnique({
+        where: { id: targetUserId },
+      });
+      if (!hostUser) {
+        hostUser = await ctx.prisma.user.findFirst({
+          where: { username: targetUserId },
+        });
+      }
+
+      if (!hostUser) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Usuario creador no encontrado.",
+        });
+      }
+
+      // Preparar métricas asociadas
       const metricRecords: Array<{
         name: string;
         type: "OBJECTIVE" | "SUBJECTIVE";
@@ -166,49 +179,42 @@ export const competitionRouter = createTRPCRouter({
         }
       }
 
-      if (metricRecords.length > 0) {
-        await ctx.prisma.metric.createMany({
-          data: metricRecords.map((m) => ({
-            competitionId: competition.id,
-            name: m.name,
-            type: m.type,
-            maxValue: m.maxValue,
-          })),
+      // Ejecutar creación atómica en base de datos asignando el rol de HOST al creador
+      const competition = await ctx.prisma.$transaction(async (tx) => {
+        const comp = await tx.competition.create({
+          data: {
+            title: input.title,
+            description: input.description,
+            rules: input.rules,
+            fileFormat: input.fileFormat,
+            tags: input.tags ?? [],
+            submissionDeadline: input.submissionDeadline,
+            votingDeadline: input.votingDeadline,
+            status: "DRAFT",
+          },
         });
-      }
 
-      // Asignar al usuario el rol de HOST en la competencia
-      let hostUser = null;
-      if (input.userId) {
-        hostUser = await ctx.prisma.user.findUnique({
-          where: { id: input.userId },
-        });
-        if (!hostUser) {
-          hostUser = await ctx.prisma.user.findFirst({
-            where: { username: input.userId },
+        if (metricRecords.length > 0) {
+          await tx.metric.createMany({
+            data: metricRecords.map((m) => ({
+              competitionId: comp.id,
+              name: m.name,
+              type: m.type,
+              maxValue: m.maxValue,
+            })),
           });
         }
-      }
 
-      if (!hostUser) {
-        hostUser = await ctx.prisma.user.findFirst({
-          where: { username: "luis_dev" },
-        });
-      }
-
-      if (!hostUser) {
-        hostUser = await ctx.prisma.user.findFirst();
-      }
-
-      if (hostUser) {
-        await ctx.prisma.competitionParticipant.create({
+        await tx.competitionParticipant.create({
           data: {
             userId: hostUser.id,
-            competitionId: competition.id,
+            competitionId: comp.id,
             role: "HOST",
           },
         });
-      }
+
+        return comp;
+      });
 
       return {
         success: true,
@@ -216,6 +222,7 @@ export const competitionRouter = createTRPCRouter({
         status: "draft" as const,
         id: competition.id,
         title: competition.title,
+        host: hostUser.username,
       };
     }),
 });
