@@ -76,6 +76,7 @@ export function CreateCompetitionForm() {
   // Submission & UI feedback
   const createMutation = useMutation(trpc.competition.create.mutationOptions());
   const isSubmitting = createMutation.isPending;
+  const [submittingAction, setSubmittingAction] = useState<"draft" | "publish" | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -235,6 +236,7 @@ export function CreateCompetitionForm() {
     }
 
     try {
+      setSubmittingAction("draft");
       // Build dictionary of metrics
       const metricsDict: Record<
         string,
@@ -265,6 +267,7 @@ export function CreateCompetitionForm() {
         votingDeadline: new Date(votingDeadline),
         metrics: metricsDict,
         userId: user.id,
+        status: "DRAFT",
       });
 
       const competitionId = result.competitionId || result.id;
@@ -283,6 +286,76 @@ export function CreateCompetitionForm() {
           ? err.message
           : "Ocurrió un error inesperado al guardar el borrador.";
       setErrorMessage(message);
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
+
+  // Handle Publish Directly (Caso 2: Crear y Activar en un solo paso)
+  const handlePublishCompetition = async () => {
+    setHasAttemptedSubmit(true);
+    setErrorMessage(null);
+
+    if (!isFormValid) {
+      setErrorMessage(
+        "Por favor completa todos los campos obligatorios antes de publicar la competencia."
+      );
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      return;
+    }
+
+    try {
+      setSubmittingAction("publish");
+      const metricsDict: Record<
+        string,
+        { type: "OBJECTIVE" | "SUBJECTIVE"; maxValue: number; weight: number }
+      > = {};
+
+      metrics.forEach((m, idx) => {
+        const key = m.name.trim() || `Metrica_${idx + 1}`;
+        metricsDict[key] = {
+          type: m.type,
+          maxValue: 5,
+          weight: Number(m.weight) || 0,
+        };
+      });
+
+      if (!user?.id) {
+        setErrorMessage("Debes iniciar sesión para publicar una competencia.");
+        return;
+      }
+
+      const result = await createMutation.mutateAsync({
+        title: title.trim(),
+        description: description.trim(),
+        rules: rules.trim(),
+        fileFormat: selectedFormats.join(", "),
+        tags: selectedCategories,
+        submissionDeadline: new Date(submissionDeadline),
+        votingDeadline: new Date(votingDeadline),
+        metrics: metricsDict,
+        userId: user.id,
+        status: "ACTIVE",
+      });
+
+      const competitionId = result.competitionId || result.id;
+      if (!competitionId) {
+        throw new Error(
+          "No se recibió el ID de la competencia creada por el servidor."
+        );
+      }
+
+      // Redirect to competition detail page (which is now active)
+      router.push(`/competitions/${competitionId}`);
+    } catch (err: unknown) {
+      console.error("Error publishing competition:", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error inesperado al publicar la competencia.";
+      setErrorMessage(message);
+    } finally {
+      setSubmittingAction(null);
     }
   };
 
@@ -882,13 +955,14 @@ export function CreateCompetitionForm() {
         {/* Status */}
         <div className="flex items-center gap-2.5">
           <div
-            className={`h-2.5 w-2.5 rounded-full ${isFormValid ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
-              }`}
+            className={`h-2.5 w-2.5 rounded-full ${
+              isFormValid ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+            }`}
           />
           <p className="text-xs sm:text-sm font-semibold text-slate-200">
             Estado del formulario:{" "}
             {isFormValid ? (
-              <span className="text-emerald-400">Listo para guardar</span>
+              <span className="text-emerald-400">Listo para publicar</span>
             ) : (
               <span className="text-amber-400">
                 Faltan campos obligatorios ({validationErrors.length})
@@ -905,51 +979,84 @@ export function CreateCompetitionForm() {
             disabled={isSubmitting}
             className="rounded-xl border border-[#2A3B5C] bg-[#0D1527] px-5 py-2.5 text-xs sm:text-sm font-semibold text-white shadow transition hover:bg-[#1A2640] hover:border-slate-400 disabled:opacity-50"
           >
-            {isSubmitting ? "Guardando borrador…" : "Guardar como borrador"}
+            {isSubmitting && submittingAction === "draft"
+              ? "Guardando borrador…"
+              : "Guardar como borrador"}
           </button>
 
           <button
             type="button"
-            onClick={() => setPublishModalOpen(true)}
-            className="rounded-xl bg-[#FF6B00] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md transition hover:bg-[#E05E00] active:scale-[0.98]"
+            onClick={() => {
+              setHasAttemptedSubmit(true);
+              if (!isFormValid) {
+                setErrorMessage(
+                  "Por favor completa todos los campos obligatorios antes de publicar la competencia."
+                );
+                window.scrollTo({
+                  top: document.body.scrollHeight,
+                  behavior: "smooth",
+                });
+                return;
+              }
+              setPublishModalOpen(true);
+            }}
+            disabled={isSubmitting}
+            className="rounded-xl bg-[#FF6B00] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md transition hover:bg-[#E05E00] active:scale-[0.98] disabled:opacity-50"
           >
-            Publicar Competencia
+            {isSubmitting && submittingAction === "publish"
+              ? "Publicando competencia…"
+              : "Publicar Competencia"}
           </button>
         </div>
       </div>
 
-      {/* Publish Modal Informative Notice */}
+      {/* Publish Modal Confirmation */}
       {publishModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white">
-              Publicar Competencia
-            </h3>
-            <p className="mt-2 text-xs text-slate-300 leading-relaxed">
-              ...Trabajo en proceso
+          <div className="w-full max-w-md rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/20 text-orange-400 font-bold text-lg">
+                🚀
+              </div>
+              <h3 className="text-lg font-bold text-white">
+                Publicar Competencia
+              </h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              ¿Estás seguro de que deseas publicar esta competencia directamente? Al activarla, cambiará su estado a <strong className="text-emerald-400">active</strong> y estará disponible públicamente para todos los participantes.
             </p>
-            <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-              Por el momento, guarda el borrador{" "}
-              <strong className="text-white">“Guardar como borrador”</strong>{" "}
-              para dejarla creada en estado <span className="font-mono text-amber-300">draft</span>.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
+            <div className="rounded-xl border border-[#1E2D4A] bg-[#0A101D] p-3 text-xs text-slate-300 space-y-1">
+              <p>
+                ● <strong>Estado:</strong> Pasará directamente a <span className="text-emerald-400 font-semibold">ACTIVA</span>.
+              </p>
+              <p>
+                ● <strong>Visibilidad:</strong> Estará visible y abierta a todos los participantes.
+              </p>
+              <p>
+                ● <strong>Rol:</strong> Serás asignado automáticamente como el <span className="text-orange-400 font-semibold">Host</span> oficial.
+              </p>
+            </div>
+            <div className="mt-6 flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setPublishModalOpen(false)}
-                className="rounded-xl bg-[#0D1527] border border-[#1E2D4A] px-4 py-2 text-xs font-medium text-slate-300 hover:bg-[#16233B]"
+                disabled={isSubmitting}
+                className="rounded-xl bg-[#0D1527] border border-[#1E2D4A] px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-[#16233B] hover:text-white transition disabled:opacity-50"
               >
-                Entendido
+                Cancelar
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setPublishModalOpen(false);
-                  handleSaveDraft();
+                  await handlePublishCompetition();
                 }}
-                className="rounded-xl bg-[#FF6B00] px-4 py-2 text-xs font-semibold text-white hover:bg-[#E05E00]"
+                disabled={isSubmitting}
+                className="rounded-xl bg-[#FF6B00] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#E05E00] shadow-md transition disabled:opacity-50"
               >
-                Guardar Borrador
+                {isSubmitting && submittingAction === "publish"
+                  ? "Publicando…"
+                  : "Confirmar y Publicar"}
               </button>
             </div>
           </div>
