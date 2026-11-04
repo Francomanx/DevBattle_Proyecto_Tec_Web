@@ -72,13 +72,17 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
+      const isOwner = ctx.session?.user?.id === user.id;
+
       const hostedCompetitions = user.competitionParticipants
         .filter((participation) => participation.role === "HOST")
-        .map((participation) => participation.competition);
+        .map((participation) => participation.competition)
+        .filter((comp) => isOwner || comp.status !== "DRAFT");
 
       const devCompetitions = user.competitionParticipants
         .filter((participation) => participation.role === "DEV")
-        .map((participation) => participation.competition);
+        .map((participation) => participation.competition)
+        .filter((comp) => isOwner || comp.status !== "DRAFT");
 
       return {
         user: {
