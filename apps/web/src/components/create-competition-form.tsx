@@ -28,6 +28,50 @@ const FORMAT_OPTIONS = [
   { value: "archivo", label: "Archivo individual de código (.py, .ts, etc.)" },
 ];
 
+export interface EvaluationPreset {
+  id: string;
+  label: string;
+  description: string;
+  metrics: {
+    name: string;
+    type: "OBJECTIVE" | "SUBJECTIVE";
+    weight: number;
+  }[];
+}
+
+export const EVALUATION_PRESETS: EvaluationPreset[] = [
+  {
+    id: "frontend",
+    label: "Frontend / UI",
+    description: "Para interfaces y diseño: funcionalidad, experiencia de usuario y fidelidad visual.",
+    metrics: [
+      { name: "Funcionalidad y Requerimientos", type: "OBJECTIVE", weight: 40 },
+      { name: "Diseño, UX y Responsividad", type: "SUBJECTIVE", weight: 35 },
+      { name: "Calidad y Estructura del Código", type: "OBJECTIVE", weight: 25 },
+    ],
+  },
+  {
+    id: "backend",
+    label: "Backend / Algoritmos",
+    description: "Para servicios y lógica: exactitud técnica, pruebas, rendimiento y arquitectura.",
+    metrics: [
+      { name: "Exactitud y Casos Borde", type: "OBJECTIVE", weight: 45 },
+      { name: "Rendimiento y Eficiencia", type: "OBJECTIVE", weight: 30 },
+      { name: "Arquitectura y Buenas Prácticas", type: "SUBJECTIVE", weight: 25 },
+    ],
+  },
+  {
+    id: "hackathon",
+    label: "Hackathon / Innovación",
+    description: "Para prototipos y proyectos rápidos: propuesta de valor, ejecución y presentación.",
+    metrics: [
+      { name: "Innovación y Propuesta de Valor", type: "SUBJECTIVE", weight: 35 },
+      { name: "Ejecución Técnica y Funcionalidad", type: "OBJECTIVE", weight: 35 },
+      { name: "Usabilidad y Presentación", type: "SUBJECTIVE", weight: 30 },
+    ],
+  },
+];
+
 function getFormattedDefaultDate(daysAhead: number): string {
   const date = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
   date.setHours(23, 59, 0, 0);
@@ -59,9 +103,21 @@ export function CreateCompetitionForm() {
   const [metrics, setMetrics] = useState<MetricItem[]>([
     {
       id: "metric-1",
-      name: "",
+      name: "Exactitud y Casos Borde",
       type: "OBJECTIVE",
-      weight: 100,
+      weight: 45,
+    },
+    {
+      id: "metric-2",
+      name: "Rendimiento y Eficiencia",
+      type: "OBJECTIVE",
+      weight: 30,
+    },
+    {
+      id: "metric-3",
+      name: "Arquitectura y Buenas Prácticas",
+      type: "SUBJECTIVE",
+      weight: 25,
     },
   ]);
 
@@ -109,33 +165,24 @@ export function CreateCompetitionForm() {
   };
 
   // Metric helpers
-  const addObjectiveMetric = () => {
+  const addMetric = (type: "OBJECTIVE" | "SUBJECTIVE" = "OBJECTIVE") => {
     const newId = `metric-${Date.now()}`;
     setMetrics((prev) => [
       ...prev,
       {
         id: newId,
         name: "",
-        type: "OBJECTIVE",
+        type,
         weight: 0,
       },
     ]);
   };
 
-  const addSubjectiveMetric = () => {
-    const newId = `metric-${Date.now()}`;
-    setMetrics((prev) => [
-      ...prev,
-      {
-        id: newId,
-        name: "",
-        type: "SUBJECTIVE",
-        weight: 0,
-      },
-    ]);
-  };
-
-  const updateMetric = (id: string, field: "name" | "weight", value: string | number) => {
+  const updateMetric = (
+    id: string,
+    field: "name" | "type" | "weight",
+    value: string | number
+  ) => {
     setMetrics((prev) =>
       prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
     );
@@ -146,27 +193,38 @@ export function CreateCompetitionForm() {
     setMetrics((prev) => prev.filter((m) => m.id !== id));
   };
 
+  const handleDistributeEquitably = () => {
+    if (metrics.length === 0) return;
+    const count = metrics.length;
+    const base = Math.floor(100 / count);
+    const remainder = 100 % count;
+    setMetrics((prev) =>
+      prev.map((m, idx) => ({
+        ...m,
+        weight: base + (idx < remainder ? 1 : 0),
+      }))
+    );
+  };
+
+  const applyPreset = (presetId: string) => {
+    const preset = EVALUATION_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    setMetrics(
+      preset.metrics.map((m, idx) => ({
+        id: `metric-${Date.now()}-${idx}`,
+        name: m.name,
+        type: m.type,
+        weight: m.weight,
+      }))
+    );
+  };
+
   // Metric calculations
-  const objectiveMetrics = useMemo(
-    () => metrics.filter((m) => m.type === "OBJECTIVE"),
-    [metrics]
-  );
-  const subjectiveMetrics = useMemo(
-    () => metrics.filter((m) => m.type === "SUBJECTIVE"),
+  const totalAssignedWeight = useMemo(
+    () => metrics.reduce((sum, m) => sum + (Number(m.weight) || 0), 0),
     [metrics]
   );
 
-  const objectiveSubtotal = useMemo(
-    () => objectiveMetrics.reduce((sum, m) => sum + (Number(m.weight) || 0), 0),
-    [objectiveMetrics]
-  );
-
-  const subjectiveSubtotal = useMemo(
-    () => subjectiveMetrics.reduce((sum, m) => sum + (Number(m.weight) || 0), 0),
-    [subjectiveMetrics]
-  );
-
-  const totalAssignedWeight = objectiveSubtotal + subjectiveSubtotal;
 
   // Validations
   const validationErrors = useMemo(() => {
@@ -186,9 +244,19 @@ export function CreateCompetitionForm() {
       errors.push("Debes seleccionar al menos un formato de recepción.");
     }
 
-    const namedMetrics = metrics.filter((m) => m.name.trim().length > 0);
-    if (namedMetrics.length === 0) {
-      errors.push("Debes definir al menos una métrica de evaluación con su nombre.");
+    if (metrics.length === 0) {
+      errors.push("Debes definir al menos una métrica de evaluación.");
+    }
+
+    const hasEmptyMetricName = metrics.some((m) => !m.name.trim());
+    if (hasEmptyMetricName) {
+      errors.push("Todos los criterios de evaluación deben tener un nombre asignado.");
+    }
+
+    if (totalAssignedWeight !== 100) {
+      errors.push(
+        `La suma de las ponderaciones de evaluación debe ser exactamente 100% (actualmente es ${totalAssignedWeight}%).`
+      );
     }
 
     if (!submissionDeadline) {
@@ -216,6 +284,7 @@ export function CreateCompetitionForm() {
     rules,
     selectedFormats,
     metrics,
+    totalAssignedWeight,
     submissionDeadline,
     votingDeadline,
   ]);
@@ -591,11 +660,10 @@ export function CreateCompetitionForm() {
               value={rules}
               onChange={(e) => setRules(e.target.value)}
               placeholder="1. Soluciones en cualquier lenguaje moderno (Node.js, Rust, Go, Python, etc.).&#10;2. Tiempo de ejecución límite: 2s por caso de prueba.&#10;3. Uso obligatorio de git con historial legible."
-              className={`w-full rounded-xl border bg-[#0A101D] p-4 text-sm text-white placeholder-slate-500 transition focus:outline-none focus:ring-1 ${
-                hasAttemptedSubmit && !rules.trim()
+              className={`w-full rounded-xl border bg-[#0A101D] p-4 text-sm text-white placeholder-slate-500 transition focus:outline-none focus:ring-1 ${hasAttemptedSubmit && !rules.trim()
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                   : "border-[#1E2D4A] focus:border-orange-500 focus:ring-orange-500"
-              }`}
+                }`}
             />
             {hasAttemptedSubmit && !rules.trim() && (
               <p className="mt-1.5 text-xs text-red-400">
@@ -633,9 +701,8 @@ export function CreateCompetitionForm() {
                 </span>
                 <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#FF6B00] text-white">
                   <svg
-                    className={`h-4 w-4 transition-transform ${
-                      isFormatDropdownOpen ? "rotate-180" : ""
-                    }`}
+                    className={`h-4 w-4 transition-transform ${isFormatDropdownOpen ? "rotate-180" : ""
+                      }`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -664,19 +731,17 @@ export function CreateCompetitionForm() {
                         key={opt.value}
                         type="button"
                         onClick={() => toggleFormat(opt.value)}
-                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition ${
-                          isChecked
+                        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition ${isChecked
                             ? "bg-orange-500/20 text-orange-200 border border-orange-500/30"
                             : "bg-[#111A2E] text-slate-300 hover:bg-[#16233B] border border-[#1E2D4A]"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`h-4 w-4 rounded flex items-center justify-center text-[10px] ${
-                              isChecked
+                            className={`h-4 w-4 rounded flex items-center justify-center text-[10px] ${isChecked
                                 ? "bg-[#FF6B00] text-white"
                                 : "border border-[#23355A] bg-[#0B111E]"
-                            }`}
+                              }`}
                           >
                             {isChecked && "✓"}
                           </div>
@@ -695,195 +760,241 @@ export function CreateCompetitionForm() {
         </div>
       </section>
 
-      {/* SECTION 3: CONFIGURACIÓN DE EVALUACIÓN (MÉTRICAS) */}
+      {/* SECTION 3: CONFIGURACIÓN DE EVALUACIÓN Y RÚBRICA */}
       <section className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] overflow-hidden shadow-lg transition duration-200 hover:border-[#283C63]">
-        <div className="border-b border-[#1A2845] bg-[#0E1628] px-6 py-4 flex items-center gap-3">
-          <div className="h-4 w-4 rounded-sm bg-white shadow-sm flex-shrink-0" />
-          <h2 className="text-base font-bold text-white tracking-wide">
-            3. Configuración de evaluación
-          </h2>
+        <div className="border-b border-[#1A2845] bg-[#0E1628] px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-4 w-4 rounded-sm bg-orange-500 shadow-sm flex-shrink-0" />
+            <h2 className="text-base font-bold text-white tracking-wide">
+              3. Configuración de evaluación y rúbrica
+            </h2>
+          </div>
+          <span className="text-xs text-slate-400">
+            Escala estándar 1 al 5
+          </span>
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Banner de balance de ponderación */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#1E2D4A] bg-[#0A101D] px-5 py-3.5">
-            <div>
-              <p className="text-sm font-bold text-white">Balance de ponderación</p>
-              <p className="text-xs text-slate-400">
-                La suma de las directrices debe alcanzar exactamente 100%
-              </p>
+          {/* Plantillas de Evaluación Recomendadas */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Plantillas recomendadas
+              </label>
+              <span className="text-[11px] text-slate-400">
+                Selecciona una plantilla para rellenar criterios balanceados al 100%
+              </span>
             </div>
-            <div
-              className={`rounded-lg px-3.5 py-1.5 text-xs font-bold transition ${totalAssignedWeight === 100
-                ? "bg-emerald-950/80 border border-emerald-500/40 text-emerald-300"
-                : "bg-amber-950/80 border border-amber-500/40 text-amber-300"
-                }`}
-            >
-              Total: {totalAssignedWeight}% Asignado
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {EVALUATION_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyPreset(preset.id)}
+                  className="rounded-xl border border-[#1E2D4A] bg-[#0D1527] p-3 text-left transition hover:border-orange-500/60 hover:bg-[#121c33] active:scale-[0.99] group"
+                >
+                  <p className="text-xs font-bold text-white group-hover:text-orange-400 transition">
+                    {preset.label}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    {preset.description}
+                  </p>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Dos Columnas: Métricas Objetivas y Subjetivas */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Columna Izquierda: Métricas Objetivas */}
-            <div className="flex flex-col rounded-xl border border-[#1A2845] bg-[#0D1527] p-5">
-              <div className="flex items-center justify-between mb-4 border-b border-[#1A2845] pb-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-white">
-                  MÉTRICAS AUTOMATIZADAS (OBJETIVAS)
-                </h3>
-                <span className="text-xs font-semibold text-orange-400">
-                  {objectiveSubtotal}% subtotal
-                </span>
+          {/* Banner de Balance de Ponderación */}
+          <div className="space-y-3 rounded-xl border border-[#1E2D4A] bg-[#0A101D] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-white">Balance de ponderación</p>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {totalAssignedWeight === 100
+                    ? "La ponderación suma exactamente 100%. Las calificaciones se calcularán con este peso relativo."
+                    : `La suma de las ponderaciones debe ser 100% (diferencia: ${100 - totalAssignedWeight > 0
+                      ? `+${100 - totalAssignedWeight}% restante`
+                      : `${100 - totalAssignedWeight}% excedido`
+                    }).`}
+                </p>
               </div>
-
-              <div className="flex-1 space-y-3 min-h-[140px]">
-                {objectiveMetrics.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic py-6 text-center">
-                    No hay métricas objetivas definidas. Haz clic abajo para agregar una.
-                  </p>
-                ) : (
-                  objectiveMetrics.map((metric) => (
-                    <div
-                      key={metric.id}
-                      className="rounded-xl border border-[#1E2D4A] bg-[#0A101D] p-3 space-y-2.5 transition hover:border-[#273B60]"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={metric.name}
-                          onChange={(e) =>
-                            updateMetric(metric.id, "name", e.target.value)
-                          }
-                          placeholder="Nombre de la métrica (ej: Cobertura de pruebas)"
-                          className="flex-1 rounded-lg border border-[#1E2D4A] bg-[#111A2E] px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none"
-                        />
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={metric.weight}
-                            onChange={(e) =>
-                              updateMetric(
-                                metric.id,
-                                "weight",
-                                Math.max(0, parseInt(e.target.value) || 0)
-                              )
-                            }
-                            className="w-14 rounded-lg border border-[#1E2D4A] bg-[#111A2E] px-2 py-1.5 text-xs text-white text-right focus:border-orange-500 focus:outline-none"
-                          />
-                          <span className="text-xs text-slate-400 font-semibold">%</span>
-                        </div>
-                        {metrics.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeMetric(metric.id)}
-                            className="h-7 w-7 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition flex items-center justify-center text-xs"
-                            title="Eliminar métrica"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 bg-[#0E1627] rounded-md px-2.5 py-1">
-                        <span>Escala 1 al 5:</span>
-                        <span className="text-slate-300">
-                          1=muy malo | 3=ok | 5=muy bueno
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={addObjectiveMetric}
-                className="mt-4 w-full rounded-xl bg-[#FF6B00] py-2.5 text-xs font-bold text-white shadow transition hover:bg-[#E05E00] active:scale-[0.99]"
-              >
-                + Agregar Objetiva
-              </button>
             </div>
 
-            {/* Columna Derecha: Métricas Subjetivas */}
-            <div className="flex flex-col rounded-xl border border-[#1A2845] bg-[#0D1527] p-5">
-              <div className="flex items-center justify-between mb-4 border-b border-[#1A2845] pb-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-white">
-                  MÉTRICAS DE JURADO (SUBJETIVAS)
-                </h3>
-                <span className="text-xs font-semibold text-orange-400">
-                  {subjectiveSubtotal}% subtotal
-                </span>
-              </div>
+            {/* Barra segmentada de ponderación */}
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#1A2845] flex">
+              {metrics.map((m, idx) => {
+                const widthPercent = Math.max(0, Math.min(100, Number(m.weight) || 0));
+                if (widthPercent === 0) return null;
+                const colors = [
+                  "bg-orange-500",
+                  "bg-blue-500",
+                  "bg-emerald-500",
+                  "bg-purple-500",
+                  "bg-amber-500",
+                  "bg-cyan-500",
+                ];
+                const color = colors[idx % colors.length];
+                return (
+                  <div
+                    key={m.id}
+                    style={{ width: `${widthPercent}%` }}
+                    className={`${color} h-full transition-all duration-300`}
+                    title={`${m.name || `Criterio ${idx + 1}`}: ${widthPercent}%`}
+                  />
+                );
+              })}
+            </div>
+          </div>
 
-              <div className="flex-1 space-y-3 min-h-[140px]">
-                {subjectiveMetrics.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic py-6 text-center">
-                    No hay métricas subjetivas definidas. Haz clic abajo para agregar una.
-                  </p>
-                ) : (
-                  subjectiveMetrics.map((metric) => (
-                    <div
-                      key={metric.id}
-                      className="rounded-xl border border-[#1E2D4A] bg-[#0A101D] p-3 space-y-2.5 transition hover:border-[#273B60]"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={metric.name}
-                          onChange={(e) =>
-                            updateMetric(metric.id, "name", e.target.value)
-                          }
-                          placeholder="Nombre de la métrica (ej: Calidad de arquitectura)"
-                          className="flex-1 rounded-lg border border-[#1E2D4A] bg-[#111A2E] px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none"
-                        />
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={metric.weight}
-                            onChange={(e) =>
-                              updateMetric(
-                                metric.id,
-                                "weight",
-                                Math.max(0, parseInt(e.target.value) || 0)
-                              )
-                            }
-                            className="w-14 rounded-lg border border-[#1E2D4A] bg-[#111A2E] px-2 py-1.5 text-xs text-white text-right focus:border-orange-500 focus:outline-none"
-                          />
-                          <span className="text-xs text-slate-400 font-semibold">%</span>
-                        </div>
-                        {metrics.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeMetric(metric.id)}
-                            className="h-7 w-7 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition flex items-center justify-center text-xs"
-                            title="Eliminar métrica"
-                          >
-                            ✕
-                          </button>
-                        )}
+          {/* Lista Unificada de Criterios */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                Criterios de evaluación ({metrics.length})
+              </label>
+              <span className="text-[11px] text-slate-400">
+                Ponderación individual y tipo de evaluación
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {metrics.map((metric, index) => (
+                <div
+                  key={metric.id}
+                  className="rounded-xl border border-[#1E2D4A] bg-[#0D1527] p-4 space-y-3 transition hover:border-[#283C63]"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-300">
+                        {index + 1}
+                      </span>
+                      <span className="text-xs font-bold text-white">
+                        {metric.name.trim() || `Criterio ${index + 1}`}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* Tipo selector */}
+                      <div className="flex rounded-lg border border-[#1E2D4A] bg-[#0A101D] p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => updateMetric(metric.id, "type", "OBJECTIVE")}
+                          className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${metric.type === "OBJECTIVE"
+                              ? "bg-orange-500 text-white"
+                              : "text-slate-400 hover:text-white"
+                            }`}
+                        >
+                          Técnico (Objetivo)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateMetric(metric.id, "type", "SUBJECTIVE")}
+                          className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${metric.type === "SUBJECTIVE"
+                              ? "bg-blue-600 text-white"
+                              : "text-slate-400 hover:text-white"
+                            }`}
+                        >
+                          Jurado (Subjetivo)
+                        </button>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 bg-[#0E1627] rounded-md px-2.5 py-1">
-                        <span>Escala 1 al 5:</span>
-                        <span className="text-slate-300">
-                          1=muy malo | 3=ok | 5=muy bueno
-                        </span>
+                      {metrics.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeMetric(metric.id)}
+                          className="h-7 w-7 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition flex items-center justify-center text-xs"
+                          title="Eliminar criterio"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Campos de Nombre y Ponderación */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                    <div className="sm:col-span-7">
+                      <input
+                        type="text"
+                        value={metric.name}
+                        onChange={(e) => updateMetric(metric.id, "name", e.target.value)}
+                        placeholder="Nombre del criterio (ej: Pruebas unitarias, Usabilidad)"
+                        className="w-full rounded-lg border border-[#1E2D4A] bg-[#0A101D] px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-5 flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={metric.weight}
+                        onChange={(e) =>
+                          updateMetric(
+                            metric.id,
+                            "weight",
+                            Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                          )
+                        }
+                        className="flex-1 accent-orange-500 cursor-pointer"
+                      />
+                      <div className="flex items-center gap-1 w-20">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={metric.weight}
+                          onChange={(e) =>
+                            updateMetric(
+                              metric.id,
+                              "weight",
+                              Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                            )
+                          }
+                          className="w-14 rounded-lg border border-[#1E2D4A] bg-[#0A101D] px-2 py-1.5 text-xs text-white text-right focus:border-orange-500 focus:outline-none"
+                        />
+                        <span className="text-xs text-slate-400 font-semibold">%</span>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
+                  </div>
 
+                  {/* Guía de Rúbrica */}
+                  <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 bg-[#0A101D] rounded-lg px-3 py-1.5">
+                    <span className="text-slate-300">
+                      Tipo: {metric.type === "OBJECTIVE" ? "Evaluación técnica y automatizada" : "Cualitativa por jurado o pares"}
+                    </span>
+                    <span className="text-slate-400 font-mono">
+                      Escala 1 a 5 (1: Insuficiente | 3: Aceptable | 5: Sobresaliente)
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Acciones de Agregar y Balancear */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 type="button"
-                onClick={addSubjectiveMetric}
-                className="mt-4 w-full rounded-xl bg-[#FF6B00] py-2.5 text-xs font-bold text-white shadow transition hover:bg-[#E05E00] active:scale-[0.99]"
+                onClick={() => addMetric("OBJECTIVE")}
+                className="flex-1 sm:flex-initial rounded-xl bg-[#1A2845] hover:bg-[#24375e] text-white border border-[#283C63] px-4 py-2.5 text-xs font-bold transition active:scale-[0.99]"
               >
-                + Agregar Subjetiva
+                + Agregar criterio técnico
+              </button>
+              <button
+                type="button"
+                onClick={() => addMetric("SUBJECTIVE")}
+                className="flex-1 sm:flex-initial rounded-xl bg-[#1A2845] hover:bg-[#24375e] text-white border border-[#283C63] px-4 py-2.5 text-xs font-bold transition active:scale-[0.99]"
+              >
+                + Agregar criterio de jurado
+              </button>
+              <button
+                type="button"
+                onClick={handleDistributeEquitably}
+                className="flex-1 sm:flex-initial rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 px-4 py-2.5 text-xs font-bold transition active:scale-[0.99]"
+              >
+                Distribuir equitativamente
               </button>
             </div>
           </div>
@@ -955,9 +1066,8 @@ export function CreateCompetitionForm() {
         {/* Status */}
         <div className="flex items-center gap-2.5">
           <div
-            className={`h-2.5 w-2.5 rounded-full ${
-              isFormValid ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
-            }`}
+            className={`h-2.5 w-2.5 rounded-full ${isFormValid ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+              }`}
           />
           <p className="text-xs sm:text-sm font-semibold text-slate-200">
             Estado del formulario:{" "}

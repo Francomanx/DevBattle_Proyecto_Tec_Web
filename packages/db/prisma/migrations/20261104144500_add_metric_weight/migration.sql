@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "metrics" ADD COLUMN "weight" INTEGER NOT NULL DEFAULT 100;
+ALTER TABLE "metrics" ALTER COLUMN "maxValue" SET DEFAULT 5;

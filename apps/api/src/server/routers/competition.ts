@@ -14,7 +14,7 @@ export function validateCompetitionForActivation(competition: {
   description?: string | null;
   rules?: string | null;
   fileFormat?: string | null;
-  metrics?: Array<{ name: string; maxValue?: number }> | null;
+  metrics?: Array<{ name: string; maxValue?: number; weight?: number }> | null;
   submissionDeadline?: Date | null;
   votingDeadline?: Date | null;
 }): string[] {
@@ -40,6 +40,11 @@ export function validateCompetitionForActivation(competition: {
     );
     if (validMetrics.length === 0) {
       errors.push("Debes definir al menos una métrica de evaluación con su nombre.");
+    } else {
+      const totalWeight = validMetrics.reduce((sum, m) => sum + (Number(m.weight) || 0), 0);
+      if (totalWeight > 0 && totalWeight !== 100) {
+        errors.push(`La suma de las ponderaciones de las métricas debe ser exactamente 100% (actualmente suma ${totalWeight}%).`);
+      }
     }
   }
 
@@ -360,6 +365,7 @@ export const competitionRouter = createTRPCRouter({
         name: string;
         type: "OBJECTIVE" | "SUBJECTIVE";
         maxValue: number;
+        weight: number;
       }> = [];
 
       if (input.metrics) {
@@ -370,6 +376,7 @@ export const competitionRouter = createTRPCRouter({
                 name: m.name.trim(),
                 type: m.type === "SUBJECTIVE" ? "SUBJECTIVE" : "OBJECTIVE",
                 maxValue: typeof m.maxValue === "number" ? m.maxValue : 5,
+                weight: typeof m.weight === "number" && m.weight > 0 ? m.weight : 0,
               });
             }
           }
@@ -389,6 +396,7 @@ export const competitionRouter = createTRPCRouter({
                   name: metricName,
                   type: v.type === "SUBJECTIVE" ? "SUBJECTIVE" : "OBJECTIVE",
                   maxValue: typeof v.maxValue === "number" ? v.maxValue : 5,
+                  weight: typeof v.weight === "number" && v.weight > 0 ? v.weight : 0,
                 });
               }
             } else {
@@ -398,11 +406,22 @@ export const competitionRouter = createTRPCRouter({
                   name: metricName,
                   type: "OBJECTIVE",
                   maxValue: typeof val === "number" ? val : 5,
+                  weight: 0,
                 });
               }
             }
           }
         }
+      }
+
+      // Si las métricas no traen peso o suman 0, distribuir 100% equitativamente
+      const currentTotalWeight = metricRecords.reduce((sum, m) => sum + m.weight, 0);
+      if (metricRecords.length > 0 && currentTotalWeight === 0) {
+        const base = Math.floor(100 / metricRecords.length);
+        const remainder = 100 - base * metricRecords.length;
+        metricRecords.forEach((m, idx) => {
+          m.weight = base + (idx === 0 ? remainder : 0);
+        });
       }
 
       const targetStatus = input.status === "ACTIVE" ? "ACTIVE" : "DRAFT";
@@ -449,6 +468,7 @@ export const competitionRouter = createTRPCRouter({
               name: m.name,
               type: m.type,
               maxValue: m.maxValue,
+              weight: m.weight,
             })),
           });
         }
@@ -471,6 +491,123 @@ export const competitionRouter = createTRPCRouter({
         id: competition.id,
         title: competition.title,
         host: hostUser.username,
+      };
+    }),
+
+  getLeaderboard: publicProcedure
+    .input(z.object({ competitionId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const competition = await ctx.prisma.competition.findUnique({
+        where: { id: input.competitionId },
+        include: {
+          metrics: true,
+          participants: {
+            include: { user: { select: { id: true, username: true } } },
+          },
+          projects: {
+            where: { isDisqualified: false },
+            include: {
+              author: { select: { id: true, username: true } },
+              votes: {
+                include: {
+                  metric: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!competition) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Competencia no encontrada" });
+      }
+
+      // Suma total de ponderación para normalizar
+      const totalWeight =
+        competition.metrics.reduce((acc, m) => acc + (m.weight || 0), 0) || 100;
+
+      // Identificar jurados oficiales (HOST y MOD)
+      const jurorUserIds = new Set(
+        competition.participants
+          .filter((p) => p.role === "HOST" || p.role === "MOD")
+          .map((p) => p.userId)
+      );
+
+      // Calcular puntuación ponderada para cada proyecto
+      const rankedProjects = competition.projects.map((project) => {
+        // Separar votos del jurado si existen
+        const jurorVotes = project.votes.filter((v) => jurorUserIds.has(v.voterId));
+        const effectiveVotes = jurorVotes.length > 0 ? jurorVotes : project.votes;
+
+        const metricBreakdown: Array<{
+          metricId: string;
+          name: string;
+          weight: number;
+          averageScore: number;
+          weightedScore: number;
+          voteCount: number;
+        }> = [];
+
+        let totalWeightedScore = 0;
+
+        for (const metric of competition.metrics) {
+          const metricVotes = effectiveVotes.filter((v) => v.metricId === metric.id);
+          const avgScore =
+            metricVotes.length > 0
+              ? metricVotes.reduce((sum, v) => sum + v.score, 0) / metricVotes.length
+              : 0;
+
+          const weightNormalized = (metric.weight || 0) / totalWeight;
+          const weightedScore = avgScore * weightNormalized;
+
+          totalWeightedScore += weightedScore;
+
+          metricBreakdown.push({
+            metricId: metric.id,
+            name: metric.name,
+            weight: metric.weight,
+            averageScore: Math.round(avgScore * 100) / 100,
+            weightedScore: Math.round(weightedScore * 100) / 100,
+            voteCount: metricVotes.length,
+          });
+        }
+
+        const scoreOutOf100 = Math.round((totalWeightedScore / 5) * 1000) / 10;
+        const scoreOutOf5 = Math.round(totalWeightedScore * 100) / 100;
+
+        return {
+          projectId: project.id,
+          title: project.title,
+          description: project.description,
+          author: project.author,
+          submissionDate: project.submissionDate,
+          scoreOutOf5,
+          scoreOutOf100,
+          totalVotes: effectiveVotes.length,
+          hasJurorVotes: jurorVotes.length > 0,
+          metricBreakdown,
+        };
+      });
+
+      // Orden descendente por puntaje; en empate, fecha de entrega más temprana
+      rankedProjects.sort((a, b) => {
+        if (b.scoreOutOf100 !== a.scoreOutOf100) {
+          return b.scoreOutOf100 - a.scoreOutOf100;
+        }
+        return new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime();
+      });
+
+      const leaderboard = rankedProjects.map((p, idx) => ({
+        rank: idx + 1,
+        ...p,
+      }));
+
+      return {
+        competitionId: competition.id,
+        competitionTitle: competition.title,
+        status: competition.status,
+        metrics: competition.metrics,
+        leaderboard,
       };
     }),
 });
