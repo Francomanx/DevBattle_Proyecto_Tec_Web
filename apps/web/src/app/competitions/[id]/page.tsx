@@ -418,15 +418,41 @@ function CompetitionDetailContent() {
       {/* Section 5: Leaderboard / Tabla de Posiciones */}
       <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E2D4A] pb-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-            5. Tabla de posiciones y calificaciones ponderadas
-          </h2>
-          <span className="text-[11px] text-slate-400">
-            Ponderación basada en la rúbrica oficial
-          </span>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              5. Tabla de posiciones y TOP de participantes
+            </h2>
+          </div>
+          {leaderboardData && !leaderboardData.isVotingClosed ? (
+            <span className="rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-bold text-blue-300 border border-blue-500/30">
+              Votación en curso (TOP no disponible)
+            </span>
+          ) : (
+            <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-bold text-emerald-300 border border-emerald-500/30">
+              Resultados oficiales (Votación finalizada)
+            </span>
+          )}
         </div>
 
-        {leaderboardData && leaderboardData.leaderboard.length > 0 ? (
+        {leaderboardData && !leaderboardData.isVotingClosed ? (
+          <div className="rounded-xl border border-[#1A2845] bg-[#0A101D] p-6 text-center space-y-3">
+            <p className="text-sm font-semibold text-white">
+              El cálculo de puntajes y el TOP oficial se publicarán al finalizar la votación
+            </p>
+            <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+              Las competencias que aún no llegan a su fin no pueden contar con un TOP. Las evaluaciones y calificaciones ponderadas se calcularán de forma automática una vez concluida la fecha límite de votación.
+            </p>
+            <div className="inline-flex items-center gap-2 rounded-lg bg-[#0E1627] border border-[#16233B] px-3.5 py-2 text-xs text-slate-300 font-mono">
+              <span>Fecha límite de votación:</span>
+              <span className="font-bold text-orange-400">
+                {new Date(competition.votingDeadline).toLocaleString("es-ES", {
+                  dateStyle: "full",
+                  timeStyle: "short",
+                })}
+              </span>
+            </div>
+          </div>
+        ) : leaderboardData && leaderboardData.leaderboard.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-white">
               <thead className="bg-[#0A101D] text-slate-400 uppercase tracking-wider text-[11px]">
@@ -483,7 +509,7 @@ function CompetitionDetailContent() {
           </div>
         ) : (
           <div className="rounded-xl border border-[#1A2845] bg-[#0A101D] p-6 text-center text-xs text-slate-400">
-            Aún no hay entregas evaluadas para esta competencia. Las calificaciones se ponderarán automáticamente según las métricas configuradas.
+            La competencia ha finalizado, pero no se registraron proyectos evaluados para generar el ranking.
           </div>
         )}
       </div>
