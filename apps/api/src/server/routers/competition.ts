@@ -522,6 +522,35 @@ export const competitionRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Competencia no encontrada" });
       }
 
+      const now = new Date();
+      const isVotingClosed =
+        competition.status === "COMPLETED" ||
+        now.getTime() >= new Date(competition.votingDeadline).getTime();
+
+      // Si la fecha límite de votación aún no finaliza, no se calcula ni expone el TOP
+      if (!isVotingClosed) {
+        return {
+          competitionId: competition.id,
+          competitionTitle: competition.title,
+          status: competition.status,
+          metrics: competition.metrics,
+          isVotingClosed: false,
+          votingDeadline: competition.votingDeadline,
+          leaderboard: [],
+          message:
+            "La fecha límite de votación aún no ha finalizado. El TOP y cálculo de puntajes se realizará al concluir la votación.",
+        };
+      }
+
+      // Si la votación ya finalizó, sincronizamos el estado en base de datos si estaba en ACTIVE/VOTING
+      if (competition.status !== "COMPLETED" && competition.status !== "DRAFT") {
+        await ctx.prisma.competition.update({
+          where: { id: competition.id },
+          data: { status: "COMPLETED" },
+        });
+        competition.status = "COMPLETED";
+      }
+
       // Suma total de ponderación para normalizar
       const totalWeight =
         competition.metrics.reduce((acc, m) => acc + (m.weight || 0), 0) || 100;
@@ -607,6 +636,8 @@ export const competitionRouter = createTRPCRouter({
         competitionTitle: competition.title,
         status: competition.status,
         metrics: competition.metrics,
+        isVotingClosed: true,
+        votingDeadline: competition.votingDeadline,
         leaderboard,
       };
     }),
