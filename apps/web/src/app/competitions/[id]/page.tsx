@@ -36,6 +36,13 @@ function CompetitionDetailContent() {
     enabled: !isAuthLoading && Boolean(competitionId),
   });
 
+  const { data: leaderboardData } = useQuery({
+    ...trpc.competition.getLeaderboard.queryOptions({
+      competitionId,
+    }),
+    enabled: Boolean(competitionId),
+  });
+
   if (isAuthLoading || isLoading) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-16 text-center">
@@ -173,9 +180,12 @@ function CompetitionDetailContent() {
     }
   };
 
-  // Separate metrics
-  const objectiveMetrics = competition.metrics.filter((m) => m.type === "OBJECTIVE");
-  const subjectiveMetrics = competition.metrics.filter((m) => m.type === "SUBJECTIVE");
+  // Metrics and Leaderboard calculations
+  const totalWeight = competition.metrics.reduce(
+    (acc, m) => acc + (m.weight ?? 0),
+    0
+  );
+
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
@@ -303,60 +313,76 @@ function CompetitionDetailContent() {
         </div>
       </div>
 
-      {/* Section 3: Evaluation Metrics */}
+      {/* Section 3: Evaluation Metrics & Rubric */}
       <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-4">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-[#1E2D4A] pb-2">
-          3. Métricas de evaluación configuradas ({competition.metrics.length})
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E2D4A] pb-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            3. Rúbrica y métricas de evaluación ({competition.metrics.length})
+          </h2>
+          <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-bold text-emerald-300 border border-emerald-500/30">
+            {totalWeight}% Ponderado Total
+          </span>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-          {/* Objective */}
-          <div className="rounded-xl border border-[#1A2845] bg-[#0D1527] p-4 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-orange-400">
-              Métricas Automatizadas (Objetivas)
-            </h3>
-            {objectiveMetrics.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">Ninguna definida.</p>
-            ) : (
-              <ul className="space-y-2">
-                {objectiveMetrics.map((m) => (
-                  <li
-                    key={m.id}
-                    className="rounded-lg border border-[#1E2D4A] bg-[#0A101D] p-2.5 text-xs text-white flex items-center justify-between"
-                  >
-                    <span className="font-semibold">{m.name}</span>
-                    <span className="rounded bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
-                      Escala 1 al {m.maxValue}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+        {/* Visual segmented progress bar */}
+        <div className="h-2 w-full overflow-hidden rounded-full bg-[#1A2845] flex">
+          {competition.metrics.map((m, idx) => {
+            const widthPercent = Math.max(0, Math.min(100, Number(m.weight) || 0));
+            if (widthPercent === 0) return null;
+            const colors = [
+              "bg-orange-500",
+              "bg-blue-500",
+              "bg-emerald-500",
+              "bg-purple-500",
+              "bg-amber-500",
+              "bg-cyan-500",
+            ];
+            const color = colors[idx % colors.length];
+            return (
+              <div
+                key={m.id}
+                style={{ width: `${widthPercent}%` }}
+                className={`${color} h-full transition-all duration-300`}
+                title={`${m.name}: ${widthPercent}%`}
+              />
+            );
+          })}
+        </div>
 
-          {/* Subjective */}
-          <div className="rounded-xl border border-[#1A2845] bg-[#0D1527] p-4 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-orange-400">
-              Métricas de Jurado (Subjetivas)
-            </h3>
-            {subjectiveMetrics.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">Ninguna definida.</p>
-            ) : (
-              <ul className="space-y-2">
-                {subjectiveMetrics.map((m) => (
-                  <li
-                    key={m.id}
-                    className="rounded-lg border border-[#1E2D4A] bg-[#0A101D] p-2.5 text-xs text-white flex items-center justify-between"
-                  >
-                    <span className="font-semibold">{m.name}</span>
-                    <span className="rounded bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">
-                      Escala 1 al {m.maxValue}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+          {competition.metrics.map((m, idx) => (
+            <div
+              key={m.id}
+              className="rounded-xl border border-[#1E2D4A] bg-[#0A101D] p-3.5 space-y-2.5 transition hover:border-[#283C63]"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] font-bold text-slate-300">
+                  {idx + 1}
+                </span>
+                <span
+                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                    m.type === "OBJECTIVE"
+                      ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
+                      : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                  }`}
+                >
+                  {m.type === "OBJECTIVE" ? "Técnico" : "Jurado"}
+                </span>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold text-white leading-snug">{m.name}</p>
+                <p className="text-[11px] font-semibold text-orange-400 mt-0.5">
+                  {m.weight}% de la nota final
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-[#0E1627] border border-[#16233B] px-2.5 py-1.5 text-[10px] text-slate-400">
+                <p className="font-mono text-slate-300">Escala 1 a {m.maxValue}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">1: Insuficiente | 3: Aceptable | 5: Sobresaliente</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -387,6 +413,79 @@ function CompetitionDetailContent() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Section 5: Leaderboard / Tabla de Posiciones */}
+      <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E2D4A] pb-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            5. Tabla de posiciones y calificaciones ponderadas
+          </h2>
+          <span className="text-[11px] text-slate-400">
+            Ponderación basada en la rúbrica oficial
+          </span>
+        </div>
+
+        {leaderboardData && leaderboardData.leaderboard.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-white">
+              <thead className="bg-[#0A101D] text-slate-400 uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="px-4 py-3 rounded-l-lg">Puesto</th>
+                  <th className="px-4 py-3">Participante / Proyecto</th>
+                  <th className="px-4 py-3 text-right">Nota (1 a 5)</th>
+                  <th className="px-4 py-3 text-right">Puntaje Final</th>
+                  <th className="px-4 py-3 text-right rounded-r-lg">Entregado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#1A2845]">
+                {leaderboardData.leaderboard.map((item) => (
+                  <tr key={item.projectId} className="hover:bg-[#0D1527] transition">
+                    <td className="px-4 py-3 font-bold">
+                      <span
+                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-extrabold ${
+                          item.rank === 1
+                            ? "bg-amber-400 text-slate-900 shadow"
+                            : item.rank === 2
+                            ? "bg-slate-300 text-slate-900"
+                            : item.rank === 3
+                            ? "bg-amber-700 text-white"
+                            : "bg-slate-800 text-slate-300"
+                        }`}
+                      >
+                        {item.rank}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-white">{item.title}</span>
+                        <Link
+                          href={`/usuarios/${encodeURIComponent(item.author.username)}`}
+                          className="text-[11px] text-orange-400 hover:text-orange-300"
+                        >
+                          @{item.author.username}
+                        </Link>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-300">
+                      {item.scoreOutOf5.toFixed(2)} / 5
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-orange-400">
+                      {item.scoreOutOf100.toFixed(1)} pts
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-400 text-[11px]">
+                      {new Date(item.submissionDate).toLocaleDateString("es-ES")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-[#1A2845] bg-[#0A101D] p-6 text-center text-xs text-slate-400">
+            Aún no hay entregas evaluadas para esta competencia. Las calificaciones se ponderarán automáticamente según las métricas configuradas.
+          </div>
+        )}
       </div>
     </main>
   );

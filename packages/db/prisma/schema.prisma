@@ -114,7 +114,8 @@ model Metric {
   competitionId String
   name          String
   type          MetricType @default(OBJECTIVE)
-  maxValue      Int
+  maxValue      Int        @default(5)
+  weight        Int        @default(100)
 
   competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   votes       Vote[]
