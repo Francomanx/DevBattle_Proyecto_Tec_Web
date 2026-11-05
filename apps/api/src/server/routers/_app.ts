@@ -5,6 +5,7 @@ import { healthRouter } from "./health";
 import { authRouter } from "./auth";
 import { projectRouter } from "./project";
 import { profileRouter } from "./profile";
+import { notificationRouter } from "./notification";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -13,6 +14,7 @@ export const appRouter = createTRPCRouter({
   challenge: challengeRouter,
   project: projectRouter,
   profile: profileRouter,
+  notification: notificationRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -39,6 +39,12 @@ enum GroupRole {
   ADMIN
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 enum NotificationType {
   STATE_CHANGE
   DISQUALIFICATION
@@ -71,6 +77,8 @@ model User {
   receivedMessages       Message[]                @relation("ReceivedMessages")
   groupMembers           GroupMember[]
   notifications          Notification[]
+  sentModInvitations     ModInvitation[]          @relation("SentModInvitations")
+  receivedModInvitations ModInvitation[]          @relation("ReceivedModInvitations")
 
   @@map("users")
 }
@@ -89,9 +97,10 @@ model Competition {
   createdAt          DateTime          @default(now())
 
   // Relaciones
-  participants CompetitionParticipant[]
-  metrics      Metric[]
-  projects     Project[]
+  participants   CompetitionParticipant[]
+  metrics        Metric[]
+  projects       Project[]
+  modInvitations ModInvitation[]
 
   @@map("competitions")
 }
@@ -247,4 +256,23 @@ model Notification {
 
   @@index([userId])
   @@map("notifications")
+}
+
+model ModInvitation {
+  id            String           @id @default(cuid())
+  competitionId String
+  inviterId     String
+  invitedUserId String
+  status        InvitationStatus @default(PENDING)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  inviter     User        @relation("SentModInvitations", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitedUser User        @relation("ReceivedModInvitations", fields: [invitedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, invitedUserId])
+  @@index([invitedUserId])
+  @@index([competitionId])
+  @@map("mod_invitations")
 }
