@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -21,7 +21,15 @@ function CompetitionDetailContent() {
   const [isActivating, setIsActivating] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
 
+  const [modUsername, setModUsername] = useState("");
+  const [modError, setModError] = useState<string | null>(null);
+  const [modSuccess, setModSuccess] = useState<string | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const activateMutation = useMutation(trpc.competition.activate.mutationOptions());
+  const inviteModMutation = useMutation(trpc.competition.inviteMod.mutationOptions());
+  const cancelModMutation = useMutation(trpc.competition.cancelModInvitation.mutationOptions());
 
   const {
     data: competition,
@@ -35,6 +43,54 @@ function CompetitionDetailContent() {
     }),
     enabled: !isAuthLoading && Boolean(competitionId),
   });
+
+  const hostParticipant = competition?.participants.find((p) => p.role === "HOST");
+  const isHost = Boolean(
+    currentUser &&
+    hostParticipant &&
+    (hostParticipant.userId === currentUser.id ||
+      hostParticipant.user?.username === currentUser.username ||
+      hostParticipant.user?.username === currentUser.name)
+  );
+
+  const { data: modInvitations, refetch: refetchInvitations } = useQuery({
+    ...trpc.competition.getModInvitations.queryOptions({
+      competitionId,
+      userId: currentUser?.id,
+    }),
+    enabled: Boolean(competitionId) && isHost,
+  });
+
+  const cleanModSearchQuery = modUsername.trim().replace(/^@+/, "");
+
+  const { data: userSuggestions, isFetching: isSearchingUsers } = useQuery({
+    ...trpc.competition.searchCandidateMods.queryOptions({
+      competitionId,
+      query: modUsername.trim(),
+    }),
+    enabled: Boolean(competitionId) && isHost && cleanModSearchQuery.length >= 1,
+  });
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleSelectSuggestion = (username: string) => {
+    setModUsername(username);
+    setShowSuggestions(false);
+    setModError(null);
+  };
 
   const { data: leaderboardData } = useQuery({
     ...trpc.competition.getLeaderboard.queryOptions({
@@ -125,18 +181,6 @@ function CompetitionDetailContent() {
     );
   }
 
-  // Find host participant
-  const hostParticipant = competition.participants.find((p) => p.role === "HOST");
-
-  // Determine if current user is the host
-  const isHost = Boolean(
-    currentUser &&
-    hostParticipant &&
-    (hostParticipant.userId === currentUser.id ||
-      hostParticipant.user?.username === currentUser.username ||
-      hostParticipant.user?.username === currentUser.name)
-  );
-
   // If status is DRAFT and not host, restrict access
   if (competition.status === "DRAFT" && !isHost) {
     return (
@@ -177,6 +221,51 @@ function CompetitionDetailContent() {
       setActivationError(message);
     } finally {
       setIsActivating(false);
+    }
+  };
+
+  const handleInviteMod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowSuggestions(false);
+    if (!modUsername.trim()) return;
+    setModError(null);
+    setModSuccess(null);
+    try {
+      const res = await inviteModMutation.mutateAsync({
+        competitionId,
+        username: modUsername.trim(),
+        userId: currentUser?.id,
+      });
+      setModSuccess(res.message);
+      setModUsername("");
+      await refetchInvitations();
+    } catch (err: unknown) {
+      console.error("Error al invitar moderador:", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error inesperado al invitar al moderador.";
+      setModError(message);
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    setModError(null);
+    setModSuccess(null);
+    try {
+      await cancelModMutation.mutateAsync({
+        invitationId,
+        userId: currentUser?.id,
+      });
+      setModSuccess("Solicitud cancelada exitosamente.");
+      await refetchInvitations();
+    } catch (err: unknown) {
+      console.error("Error al cancelar solicitud:", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error inesperado al cancelar la solicitud.";
+      setModError(message);
     }
   };
 
@@ -265,6 +354,248 @@ function CompetitionDetailContent() {
               <p className="font-semibold text-red-200">No se pudo activar la competencia</p>
               <p>{activationError}</p>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Moderation & Jurors Section */}
+      <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E2D4A] pb-3">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              Equipo de Moderación y Jurado
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Los moderadores (MOD) colaboran con el host evaluando proyectos y moderando el certamen.
+            </p>
+          </div>
+          <span className="rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-bold text-blue-300 border border-blue-500/30">
+            {competition.participants.filter((p) => p.role === "MOD").length}{" "}
+            {competition.participants.filter((p) => p.role === "MOD").length === 1
+              ? "Moderador"
+              : "Moderadores"}
+          </span>
+        </div>
+
+        {/* List of active moderators */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-slate-400">Moderadores activos:</p>
+          {competition.participants.filter((p) => p.role === "MOD").length === 0 ? (
+            <p className="text-xs text-slate-500 italic bg-[#0A101D] p-3 rounded-xl border border-[#1E2D4A]">
+              Aún no hay moderadores asignados a esta competencia.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {competition.participants
+                .filter((p) => p.role === "MOD")
+                .map((m) => (
+                  <div
+                    key={m.userId}
+                    className="flex items-center gap-2 rounded-lg bg-[#0D1527] border border-[#1E2D4A] px-3 py-1.5 text-xs"
+                  >
+                    <Link
+                      href={`/usuarios/${encodeURIComponent(m.user.username)}`}
+                      className="font-semibold text-blue-400 hover:text-blue-300"
+                    >
+                      @{m.user.username}
+                    </Link>
+                    <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-blue-300 border border-blue-500/30">
+                      MOD
+                    </span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+
+        {/* Host controls to invite new moderators */}
+        {isHost && (
+          <div className="mt-4 pt-4 border-t border-[#1E2D4A] space-y-3">
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-orange-400">
+                Añadir moderador (Acción de Host)
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Envía una solicitud a un usuario por su nombre de usuario. El usuario tendrá el rol de MOD únicamente si acepta la solicitud en su perfil.
+              </p>
+            </div>
+
+            <form onSubmit={handleInviteMod} className="flex flex-col sm:flex-row gap-2 relative">
+              <div ref={searchContainerRef} className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Buscar usuario por nombre (ej. dev_user)..."
+                  value={modUsername}
+                  onFocus={() => {
+                    if (modUsername.trim().length >= 1) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  onChange={(e) => {
+                    setModUsername(e.target.value);
+                    setShowSuggestions(true);
+                    if (modError) setModError(null);
+                    if (modSuccess) setModSuccess(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setShowSuggestions(false);
+                  }}
+                  className="w-full rounded-xl border border-[#1E2D4A] bg-[#0A101D] px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                />
+
+                {/* Suggestions Dropdown */}
+                {showSuggestions && cleanModSearchQuery.length >= 1 && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-xl border border-[#1E2D4A] bg-[#0B1220] shadow-2xl overflow-hidden divide-y divide-[#16233B]">
+                    {isSearchingUsers ? (
+                      <div className="p-3 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
+                        <span>Buscando sugerencias…</span>
+                      </div>
+                    ) : userSuggestions && userSuggestions.length > 0 ? (
+                      <div>
+                        <div className="px-3 py-1.5 bg-[#080D17] text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                          Sugerencias de usuarios
+                        </div>
+                        <ul className="max-h-56 overflow-y-auto">
+                          {userSuggestions.map((u) => {
+                            const isSelectable = !u.isMod && !u.isPendingInvite && !u.isHost;
+                            return (
+                              <li
+                                key={u.id}
+                                className={`flex items-center justify-between gap-3 px-3.5 py-2 text-xs transition ${
+                                  isSelectable
+                                    ? "hover:bg-[#121B2F] cursor-pointer"
+                                    : "bg-[#0A0F1A] opacity-70 cursor-not-allowed"
+                                }`}
+                                onClick={() => {
+                                  if (isSelectable) {
+                                    handleSelectSuggestion(u.username);
+                                  }
+                                }}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-orange-500/30 bg-orange-500/20 text-orange-300 font-bold text-[11px]">
+                                    {u.username.slice(0, 1).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-white truncate">
+                                      @{u.username}
+                                    </p>
+                                    {u.description && (
+                                      <p className="text-[10px] text-slate-400 truncate">
+                                        {u.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0">
+                                  {u.isHost ? (
+                                    <span className="rounded bg-orange-500/20 px-2 py-0.5 text-[10px] font-bold text-orange-300 border border-orange-500/30">
+                                      Host del reto
+                                    </span>
+                                  ) : u.isMod ? (
+                                    <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-300 border border-blue-500/30">
+                                      Ya es MOD
+                                    </span>
+                                  ) : u.isPendingInvite ? (
+                                    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+                                      Solicitud enviada
+                                    </span>
+                                  ) : (
+                                    <span className="rounded bg-slate-800 hover:bg-[#FF6B00] hover:text-white px-2 py-0.5 text-[10px] font-semibold text-slate-300 transition">
+                                      Seleccionar
+                                    </span>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ) : (
+                      <div className="p-3 text-center text-xs text-slate-400">
+                        No se encontraron usuarios coincidentes.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={inviteModMutation.isPending || !modUsername.trim()}
+                className="rounded-xl bg-[#FF6B00] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#E05E00] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 h-fit sm:self-start"
+              >
+                {inviteModMutation.isPending ? "Enviando…" : "Enviar solicitud"}
+              </button>
+            </form>
+
+            {modSuccess && (
+              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+                {modSuccess}
+              </div>
+            )}
+
+            {modError && (
+              <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
+                {modError}
+              </div>
+            )}
+
+            {/* List of pending/recent invitations */}
+            {modInvitations && modInvitations.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <p className="text-xs font-semibold text-slate-400">Solicitudes enviadas:</p>
+                <div className="space-y-1.5">
+                  {modInvitations.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#0A101D] border border-[#1E2D4A] px-3 py-2 text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/usuarios/${encodeURIComponent(inv.invitedUser.username)}`}
+                          className="font-semibold text-white hover:text-orange-400"
+                        >
+                          @{inv.invitedUser.username}
+                        </Link>
+                        <span className="text-[11px] text-slate-400">
+                          {new Date(inv.createdAt).toLocaleDateString("es-ES")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
+                            inv.status === "PENDING"
+                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                              : inv.status === "ACCEPTED"
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : "bg-red-500/20 text-red-300 border border-red-500/30"
+                          }`}
+                        >
+                          {inv.status === "PENDING"
+                            ? "Pendiente"
+                            : inv.status === "ACCEPTED"
+                            ? "Aceptada"
+                            : "Rechazada"}
+                        </span>
+                        {inv.status === "PENDING" && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelInvitation(inv.id)}
+                            disabled={cancelModMutation.isPending}
+                            className="text-[11px] text-red-400 hover:text-red-300 underline font-medium"
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
