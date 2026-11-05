@@ -270,11 +270,11 @@ function CompetitionDetailContent() {
       </div>
 
       {/* Section 1: Base Description */}
-      <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-3">
+      <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-3 min-w-0 max-w-full overflow-hidden">
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-[#1E2D4A] pb-2">
           1. Descripción y contexto del problema
         </h2>
-        <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap pt-1">
+        <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] pt-1">
           {competition.description}
         </div>
       </div>

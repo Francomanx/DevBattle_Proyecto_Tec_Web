@@ -450,32 +450,6 @@ export function CreateCompetitionForm() {
         )}
       </div>
 
-      {/* Error Alert if submit attempted with errors */}
-      {hasAttemptedSubmit && validationErrors.length > 0 && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300 text-sm shadow-md animate-fadeIn">
-          <div className="flex items-start gap-3">
-            <span className="text-red-400 font-bold text-lg leading-none">⚠️</span>
-            <div>
-              <p className="font-semibold text-red-200">
-                Se encontraron los siguientes errores en el formulario:
-              </p>
-              <ul className="mt-2 list-disc list-inside space-y-1 text-xs text-red-300/90">
-                {validationErrors.map((err, i) => (
-                  <li key={i}>{err}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300 text-sm shadow-md">
-          <p className="font-semibold">Error al guardar:</p>
-          <p className="text-xs mt-1">{errorMessage}</p>
-        </div>
-      )}
-
       {/* SECTION 1: INFORMACIÓN BASE DEL RETO */}
       <section className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] overflow-hidden shadow-lg transition duration-200 hover:border-[#283C63]">
         <div className="border-b border-[#1A2845] bg-[#0E1628] px-6 py-4 flex items-center gap-3">
@@ -627,7 +601,7 @@ export function CreateCompetitionForm() {
                 </p>
               ) : (
                 <p className="text-emerald-400 flex items-center gap-1 font-medium">
-                  ✓ Requisito mínimo de longitud cumplido.
+                  Requisito mínimo de longitud cumplido.
                 </p>
               )}
             </div>
@@ -661,8 +635,8 @@ export function CreateCompetitionForm() {
               onChange={(e) => setRules(e.target.value)}
               placeholder="1. Soluciones en cualquier lenguaje moderno (Node.js, Rust, Go, Python, etc.).&#10;2. Tiempo de ejecución límite: 2s por caso de prueba.&#10;3. Uso obligatorio de git con historial legible."
               className={`w-full rounded-xl border bg-[#0A101D] p-4 text-sm text-white placeholder-slate-500 transition focus:outline-none focus:ring-1 ${hasAttemptedSubmit && !rules.trim()
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                  : "border-[#1E2D4A] focus:border-orange-500 focus:ring-orange-500"
+                ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                : "border-[#1E2D4A] focus:border-orange-500 focus:ring-orange-500"
                 }`}
             />
             {hasAttemptedSubmit && !rules.trim() && (
@@ -732,15 +706,15 @@ export function CreateCompetitionForm() {
                         type="button"
                         onClick={() => toggleFormat(opt.value)}
                         className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition ${isChecked
-                            ? "bg-orange-500/20 text-orange-200 border border-orange-500/30"
-                            : "bg-[#111A2E] text-slate-300 hover:bg-[#16233B] border border-[#1E2D4A]"
+                          ? "bg-orange-500/20 text-orange-200 border border-orange-500/30"
+                          : "bg-[#111A2E] text-slate-300 hover:bg-[#16233B] border border-[#1E2D4A]"
                           }`}
                       >
                         <div className="flex items-center gap-3">
                           <div
                             className={`h-4 w-4 rounded flex items-center justify-center text-[10px] ${isChecked
-                                ? "bg-[#FF6B00] text-white"
-                                : "border border-[#23355A] bg-[#0B111E]"
+                              ? "bg-[#FF6B00] text-white"
+                              : "border border-[#23355A] bg-[#0B111E]"
                               }`}
                           >
                             {isChecked && "✓"}
@@ -882,8 +856,8 @@ export function CreateCompetitionForm() {
                           type="button"
                           onClick={() => updateMetric(metric.id, "type", "OBJECTIVE")}
                           className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${metric.type === "OBJECTIVE"
-                              ? "bg-orange-500 text-white"
-                              : "text-slate-400 hover:text-white"
+                            ? "bg-orange-500 text-white"
+                            : "text-slate-400 hover:text-white"
                             }`}
                         >
                           Técnico (Objetivo)
@@ -892,8 +866,8 @@ export function CreateCompetitionForm() {
                           type="button"
                           onClick={() => updateMetric(metric.id, "type", "SUBJECTIVE")}
                           className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${metric.type === "SUBJECTIVE"
-                              ? "bg-blue-600 text-white"
-                              : "text-slate-400 hover:text-white"
+                            ? "bg-blue-600 text-white"
+                            : "text-slate-400 hover:text-white"
                             }`}
                         >
                           Jurado (Subjetivo)
@@ -1061,6 +1035,26 @@ export function CreateCompetitionForm() {
         </div>
       </section>
 
+
+      {/* Error Alert if submit attempted with errors */}
+      {hasAttemptedSubmit && validationErrors.length > 0 && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300 text-sm shadow-md animate-fadeIn">
+          <div className="flex items-start gap-3">
+            <div>
+              <p className="font-semibold text-red-200">
+                Se encontraron los siguientes errores en el formulario:
+              </p>
+              <ul className="mt-2 list-disc list-inside space-y-1 text-xs text-red-300/90">
+                {validationErrors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* FOOTER ACTION BAR */}
       <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
         {/* Status */}
@@ -1125,27 +1119,13 @@ export function CreateCompetitionForm() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/20 text-orange-400 font-bold text-lg">
-                🚀
-              </div>
               <h3 className="text-lg font-bold text-white">
                 Publicar Competencia
               </h3>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              ¿Estás seguro de que deseas publicar esta competencia directamente? Al activarla, cambiará su estado a <strong className="text-emerald-400">active</strong> y estará disponible públicamente para todos los participantes.
+              ¿Estás seguro de que deseas publicar esta competencia directamente? Estará disponible públicamente para todos los participantes.
             </p>
-            <div className="rounded-xl border border-[#1E2D4A] bg-[#0A101D] p-3 text-xs text-slate-300 space-y-1">
-              <p>
-                ● <strong>Estado:</strong> Pasará directamente a <span className="text-emerald-400 font-semibold">ACTIVA</span>.
-              </p>
-              <p>
-                ● <strong>Visibilidad:</strong> Estará visible y abierta a todos los participantes.
-              </p>
-              <p>
-                ● <strong>Rol:</strong> Serás asignado automáticamente como el <span className="text-orange-400 font-semibold">Host</span> oficial.
-              </p>
-            </div>
             <div className="mt-6 flex justify-end gap-3 pt-2">
               <button
                 type="button"
