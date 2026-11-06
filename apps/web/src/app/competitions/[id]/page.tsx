@@ -27,9 +27,15 @@ function CompetitionDetailContent() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
+  const [removingModUser, setRemovingModUser] = useState<{ id: string; username: string } | null>(null);
+  const [removeReason, setRemoveReason] = useState("");
+  const [removeModError, setRemoveModError] = useState<string | null>(null);
+  const [removeModSuccess, setRemoveModSuccess] = useState<string | null>(null);
+
   const activateMutation = useMutation(trpc.competition.activate.mutationOptions());
   const inviteModMutation = useMutation(trpc.competition.inviteMod.mutationOptions());
   const cancelModMutation = useMutation(trpc.competition.cancelModInvitation.mutationOptions());
+  const removeModMutation = useMutation(trpc.competition.removeModerator.mutationOptions());
 
   const {
     data: competition,
@@ -269,6 +275,51 @@ function CompetitionDetailContent() {
     }
   };
 
+  const handleStartRemoval = (mod: { id: string; username: string }) => {
+    setRemovingModUser(mod);
+    setRemoveReason("");
+    setRemoveModError(null);
+    setRemoveModSuccess(null);
+  };
+
+  const handleCancelRemoval = () => {
+    setRemovingModUser(null);
+    setRemoveReason("");
+    setRemoveModError(null);
+  };
+
+  const handleConfirmRemoval = async () => {
+    if (!removingModUser) return;
+    const trimmed = removeReason.trim();
+    if (!trimmed || trimmed.length < 5) {
+      setRemoveModError("Debes especificar un motivo válido para la destitución (mínimo 5 caracteres).");
+      return;
+    }
+
+    setRemoveModError(null);
+    setRemoveModSuccess(null);
+    try {
+      const res = await removeModMutation.mutateAsync({
+        competitionId,
+        targetUserId: removingModUser.id,
+        reason: trimmed,
+        userId: currentUser?.id,
+      });
+      setRemoveModSuccess(res.message);
+      setRemovingModUser(null);
+      setRemoveReason("");
+      await refetch();
+      await refetchInvitations();
+    } catch (err: unknown) {
+      console.error("Error al destituir moderador:", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error inesperado al destituir al moderador.";
+      setRemoveModError(message);
+    }
+  };
+
   // Metrics and Leaderboard calculations
   const totalWeight = competition.metrics.reduce(
     (acc, m) => acc + (m.weight ?? 0),
@@ -294,11 +345,10 @@ function CompetitionDetailContent() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span
-              className={`rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${
-                competition.status === "DRAFT"
+              className={`rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${competition.status === "DRAFT"
                   ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                   : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-              }`}
+                }`}
             >
               {competition.status === "DRAFT" ? "ESTADO: BORRADOR" : "ESTADO: ACTIVA"}
             </span>
@@ -378,7 +428,7 @@ function CompetitionDetailContent() {
         </div>
 
         {/* List of active moderators */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <p className="text-xs font-semibold text-slate-400">Moderadores activos:</p>
           {competition.participants.filter((p) => p.role === "MOD").length === 0 ? (
             <p className="text-xs text-slate-500 italic bg-[#0A101D] p-3 rounded-xl border border-[#1E2D4A]">
@@ -402,8 +452,90 @@ function CompetitionDetailContent() {
                     <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-blue-300 border border-blue-500/30">
                       MOD
                     </span>
+                    {isHost && (
+                      <button
+                        type="button"
+                        onClick={() => handleStartRemoval({ id: m.userId, username: m.user.username })}
+                        className="rounded px-2 py-0.5 text-[10px] font-bold text-red-400 hover:text-white hover:bg-red-500/20 border border-transparent hover:border-red-500/30 transition ml-1"
+                        title="Destituir de la moderación"
+                      >
+                        Destituir
+                      </button>
+                    )}
                   </div>
                 ))}
+            </div>
+          )}
+
+          {/* Panel de Destitución con Motivo Obligatorio (Solo Host) */}
+          {isHost && removingModUser && (
+            <div className="rounded-xl border border-red-500/40 bg-[#160B12] p-4 space-y-3 mt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  <h4 className="text-xs font-bold text-red-200">
+                    Destituir a @{removingModUser.username} de la moderación
+                  </h4>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Esta acción revocará de inmediato su rol de moderador en esta competencia concreta. Se enviará una notificación formal al usuario con el motivo indicado, sin derecho a réplica.
+              </p>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-semibold text-slate-300">
+                  Motivo de la destitución (obligatorio):
+                </label>
+                <textarea
+                  value={removeReason}
+                  onChange={(e) => {
+                    setRemoveReason(e.target.value);
+                    if (removeModError) setRemoveModError(null);
+                  }}
+                  rows={3}
+                  placeholder="Describe con claridad las razones por las cuales se remueve al usuario del rol de moderador..."
+                  className="w-full rounded-lg border border-[#2D1624] bg-[#0A101D] p-2.5 text-xs text-white placeholder-slate-500 focus:border-red-500 focus:outline-none"
+                />
+              </div>
+
+              {removeModError && (
+                <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg p-2.5">
+                  {removeModError}
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleCancelRemoval}
+                  disabled={removeModMutation.isPending}
+                  className="rounded-lg border border-[#1E2D4A] bg-[#0A101D] px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmRemoval}
+                  disabled={removeModMutation.isPending || removeReason.trim().length < 5}
+                  className="rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  {removeModMutation.isPending ? "Destituyendo..." : "Confirmar Destitución"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {removeModSuccess && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300 flex items-center justify-between">
+              <span>{removeModSuccess}</span>
+              <button
+                type="button"
+                onClick={() => setRemoveModSuccess(null)}
+                className="text-xs text-emerald-400 hover:text-white"
+              >
+                ✕
+              </button>
             </div>
           )}
         </div>
@@ -462,11 +594,10 @@ function CompetitionDetailContent() {
                             return (
                               <li
                                 key={u.id}
-                                className={`flex items-center justify-between gap-3 px-3.5 py-2 text-xs transition ${
-                                  isSelectable
+                                className={`flex items-center justify-between gap-3 px-3.5 py-2 text-xs transition ${isSelectable
                                     ? "hover:bg-[#121B2F] cursor-pointer"
                                     : "bg-[#0A0F1A] opacity-70 cursor-not-allowed"
-                                }`}
+                                  }`}
                                 onClick={() => {
                                   if (isSelectable) {
                                     handleSelectSuggestion(u.username);
@@ -544,58 +675,54 @@ function CompetitionDetailContent() {
             )}
 
             {/* List of pending/recent invitations */}
-            {modInvitations && modInvitations.length > 0 && (
-              <div className="space-y-2 pt-2">
-                <p className="text-xs font-semibold text-slate-400">Solicitudes enviadas:</p>
-                <div className="space-y-1.5">
-                  {modInvitations.map((inv) => (
-                    <div
-                      key={inv.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#0A101D] border border-[#1E2D4A] px-3 py-2 text-xs"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/usuarios/${encodeURIComponent(inv.invitedUser.username)}`}
-                          className="font-semibold text-white hover:text-orange-400"
+            {modInvitations &&
+              modInvitations.filter((inv) => inv.status !== "ACCEPTED").length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-xs font-semibold text-slate-400">Solicitudes enviadas:</p>
+                  <div className="space-y-1.5">
+                    {modInvitations
+                      .filter((inv) => inv.status !== "ACCEPTED")
+                      .map((inv) => (
+                        <div
+                          key={inv.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#0A101D] border border-[#1E2D4A] px-3 py-2 text-xs"
                         >
-                          @{inv.invitedUser.username}
-                        </Link>
-                        <span className="text-[11px] text-slate-400">
-                          {new Date(inv.createdAt).toLocaleDateString("es-ES")}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
-                            inv.status === "PENDING"
-                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                              : inv.status === "ACCEPTED"
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                              : "bg-red-500/20 text-red-300 border border-red-500/30"
-                          }`}
-                        >
-                          {inv.status === "PENDING"
-                            ? "Pendiente"
-                            : inv.status === "ACCEPTED"
-                            ? "Aceptada"
-                            : "Rechazada"}
-                        </span>
-                        {inv.status === "PENDING" && (
-                          <button
-                            type="button"
-                            onClick={() => handleCancelInvitation(inv.id)}
-                            disabled={cancelModMutation.isPending}
-                            className="text-[11px] text-red-400 hover:text-red-300 underline font-medium"
-                          >
-                            Cancelar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={`/usuarios/${encodeURIComponent(inv.invitedUser.username)}`}
+                              className="font-semibold text-white hover:text-orange-400"
+                            >
+                              @{inv.invitedUser.username}
+                            </Link>
+                            <span className="text-[11px] text-slate-400">
+                              {new Date(inv.createdAt).toLocaleDateString("es-ES")}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${inv.status === "PENDING"
+                                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                  : "bg-red-500/20 text-red-300 border border-red-500/30"
+                                }`}
+                            >
+                              {inv.status === "PENDING" ? "Pendiente" : "Rechazada"}
+                            </span>
+                            {inv.status === "PENDING" && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelInvitation(inv.id)}
+                                disabled={cancelModMutation.isPending}
+                                className="text-[11px] text-red-400 hover:text-red-300 underline font-medium"
+                              >
+                                Cancelar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         )}
       </div>
@@ -691,11 +818,10 @@ function CompetitionDetailContent() {
                   {idx + 1}
                 </span>
                 <span
-                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                    m.type === "OBJECTIVE"
+                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${m.type === "OBJECTIVE"
                       ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
                       : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                  }`}
+                    }`}
                 >
                   {m.type === "OBJECTIVE" ? "Técnico" : "Jurado"}
                 </span>
@@ -800,15 +926,14 @@ function CompetitionDetailContent() {
                   <tr key={item.projectId} className="hover:bg-[#0D1527] transition">
                     <td className="px-4 py-3 font-bold">
                       <span
-                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-extrabold ${
-                          item.rank === 1
+                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-extrabold ${item.rank === 1
                             ? "bg-amber-400 text-slate-900 shadow"
                             : item.rank === 2
-                            ? "bg-slate-300 text-slate-900"
-                            : item.rank === 3
-                            ? "bg-amber-700 text-white"
-                            : "bg-slate-800 text-slate-300"
-                        }`}
+                              ? "bg-slate-300 text-slate-900"
+                              : item.rank === 3
+                                ? "bg-amber-700 text-white"
+                                : "bg-slate-800 text-slate-300"
+                          }`}
                       >
                         {item.rank}
                       </span>

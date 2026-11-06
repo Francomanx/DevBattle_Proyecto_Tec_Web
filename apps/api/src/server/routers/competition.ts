@@ -897,7 +897,10 @@ export const competitionRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const invitations = await ctx.prisma.modInvitation.findMany({
-        where: { competitionId: input.competitionId },
+        where: {
+          competitionId: input.competitionId,
+          status: { not: "ACCEPTED" },
+        },
         include: {
           invitedUser: {
             select: {
@@ -1115,5 +1118,130 @@ export const competitionRouter = createTRPCRouter({
           message: `Has rechazado la solicitud para ser moderador en la competencia "${invitation.competition.title}".`,
         };
       }
+    }),
+
+  removeModerator: publicProcedure
+    .input(
+      z.object({
+        competitionId: z.string().min(1),
+        targetUserId: z.string().min(1),
+        reason: z
+          .string()
+          .trim()
+          .min(5, "Debes proporcionar un motivo para la destitución (mínimo 5 caracteres)."),
+        userId: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const currentUserId = ctx.session?.user?.id ?? input.userId;
+      if (!currentUserId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Debes iniciar sesión para destituir moderadores.",
+        });
+      }
+
+      const competition = await ctx.prisma.competition.findUnique({
+        where: { id: input.competitionId },
+        include: {
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!competition) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Competencia no encontrada.",
+        });
+      }
+
+      const hostParticipant = competition.participants.find(
+        (p) => p.role === "HOST"
+      );
+
+      let isHost = false;
+      let hostUser: { id: string; username: string } | null = null;
+      if (hostParticipant) {
+        if (
+          hostParticipant.userId === currentUserId ||
+          hostParticipant.user.username === currentUserId
+        ) {
+          isHost = true;
+          hostUser = hostParticipant.user;
+        } else {
+          const reqUser = await ctx.prisma.user.findFirst({
+            where: {
+              OR: [{ id: currentUserId }, { username: currentUserId }],
+            },
+          });
+          if (reqUser && hostParticipant.userId === reqUser.id) {
+            isHost = true;
+            hostUser = reqUser;
+          }
+        }
+      }
+
+      if (!isHost || !hostUser) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Solo el host de la competencia tiene la facultad de destituir a un moderador.",
+        });
+      }
+
+      const targetParticipant = competition.participants.find(
+        (p) =>
+          (p.userId === input.targetUserId || p.user.username === input.targetUserId) &&
+          p.role === "MOD"
+      );
+
+      if (!targetParticipant) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "El usuario especificado no es un moderador activo en esta competencia.",
+        });
+      }
+
+      const targetUser = targetParticipant.user;
+      const trimmedReason = input.reason.trim();
+
+      await ctx.prisma.$transaction([
+        ctx.prisma.competitionParticipant.delete({
+          where: {
+            userId_competitionId: {
+              userId: targetUser.id,
+              competitionId: competition.id,
+            },
+          },
+        }),
+        ctx.prisma.modInvitation.deleteMany({
+          where: {
+            competitionId: competition.id,
+            invitedUserId: targetUser.id,
+          },
+        }),
+        ctx.prisma.notification.create({
+          data: {
+            userId: targetUser.id,
+            content: `Has sido destituido como moderador de la competencia "${competition.title}" por el anfitrión @${hostUser.username}. Motivo: "${trimmedReason}". Notificación informativa sin derecho a réplica.`,
+            type: "MOD_REMOVAL",
+          },
+        }),
+      ]);
+
+      return {
+        success: true,
+        message: `El moderador @${targetUser.username} ha sido destituido exitosamente de la competencia.`,
+        destitutedUserId: targetUser.id,
+        destitutedUsername: targetUser.username,
+      };
     }),
 });
