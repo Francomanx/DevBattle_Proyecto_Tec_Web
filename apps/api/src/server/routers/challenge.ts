@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { CompetitionStatus } from "@devbattle/db";
+import { updateCompetitionStatuses } from "../services/cron.service";
 
 const statusEnum = z.enum(["active", "vote", "completed"]);
 const difficulty = z.enum(["EASY", "MEDIUM", "HARD"]);
@@ -175,4 +176,10 @@ export const challengeRouter = createTRPCRouter({
         },
       });
     }),
+
+  triggerCronJob: publicProcedure.mutation(async ({ ctx }) => {
+    await updateCompetitionStatuses(ctx.prisma);
+    return { success: true, message: "Cron job ejecutado manualmente" };
+  }),
+
 });

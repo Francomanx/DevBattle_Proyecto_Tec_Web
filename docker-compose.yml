@@ -71,5 +71,13 @@ services:
       api:
         condition: service_started
 
+  cron:
+    image: alpine
+    restart: unless-stopped
+    command: sh -c "echo '*/5 * * * * wget -qO- http://api:3001/api/cron' | crontab - && crond -f"
+    depends_on:
+      api:
+        condition: service_started
+
 volumes:
   db_data:
