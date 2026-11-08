@@ -46,6 +46,8 @@ interface AuthContextType {
   isLoading: boolean;
   authError: string | null;
   refreshSession: () => Promise<void>;
+  //autenticacion para actualizar el nombre de usuario
+  updateUserName: (username: string) => void;
   logout: () => Promise<void>;
 }
 
@@ -219,6 +221,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
     }
   }, []);
+ 
+  const updateUserName = useCallback((username: string) => {
+    setUser((currentUser) =>
+      currentUser
+        ? { ...currentUser, username, name: username }
+        : currentUser
+    );
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -233,6 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         authError,
         refreshSession,
+        updateUserName,
         logout,
       }}
     >

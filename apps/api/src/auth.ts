@@ -50,12 +50,14 @@ export const { handlers, auth } = NextAuth({
       }
       return token;
     },
-    session({ session, token }) {
+    async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
-        if (token.name) {
-          session.user.name = token.name;
-        }
+        const user = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { username: true },
+        });
+        session.user.name = user?.username ?? token.name ?? session.user.name;
       }
       return session;
     },

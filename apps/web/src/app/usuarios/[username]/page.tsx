@@ -2,11 +2,13 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { useTRPC } from "@/trpc/client";
+//modal de edicion de perfil
+import { ProfileEditModal } from "@/components/profile-edit-modal";
 
 type ProfileTab = "host" | "mod" | "dev" | "projects" | "notifications";
 //estilos para los diferentes estados de la competencia 
@@ -21,10 +23,15 @@ const statusStyles: Record<string, string> = {
 function UserProfileContent() {
   const params = useParams<{ username: string }>();
   const searchParams = useSearchParams();
+  //router para redireccionar al usuario si cambia su nombre de usuario
+  const router = useRouter();
   const username = params.username;
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const { user: currentUser } = useAuth();
+  //se obtiene el usuario actual y la funcion para actualizar el nombre de usuario
+  const { user: currentUser, updateUserName } = useAuth();
+  //estado para controlar la apertura del modal de edicion de perfil
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const tabParam = searchParams.get("tab") as ProfileTab | null;
   const [selectedTab, setSelectedTab] = useState<ProfileTab | null>(null);
@@ -49,7 +56,6 @@ function UserProfileContent() {
   const { data, isPending, error, refetch } = useQuery(
     trpc.profile.byUsername.queryOptions({
       username,
-      currentUserId: currentUser?.id,
     })
   );
   //si la api esta cargando, se muestra un mensaje de carga
@@ -161,13 +167,9 @@ function UserProfileContent() {
       setActionError(message);
     }
   };
-
-  const isOwnProfile = Boolean(
-    currentUser &&
-    (currentUser.id === data.user.id ||
-      currentUser.username === data.user.username ||
-      currentUser.name === data.user.username)
-  );
+  //se determina si el perfil que se esta viendo es el del usuario
+  //actual, para mostrar opciones de edicion y notificaciones
+  const isOwnProfile = currentUser?.id === data.user.id;
 
   const pendingInvitations = isOwnProfile
     ? (data.receivedModInvitations ?? []).filter((inv) => inv.status === "PENDING")
@@ -234,11 +236,11 @@ function UserProfileContent() {
         )}
 
         {isOwnProfile && (
+          //boton de edicion de perfil
           <button
             type="button"
-            disabled
-            title="La edición de perfil se implementará en otra tarea."
-            className="mt-6 w-full cursor-not-allowed rounded-lg border border-[#34445F] px-4 py-2 text-sm font-semibold text-slate-400"
+            onClick={() => setIsEditModalOpen(true)}
+            className="mt-6 w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600"
           >
             Editar perfil
           </button>
@@ -590,6 +592,24 @@ function UserProfileContent() {
           </div>
         )}
       </section>
+      {isOwnProfile && isEditModalOpen && (
+        //modal de edicion de perfil
+        <ProfileEditModal
+          username={data.user.username}
+          description={data.user.description}
+          githubUrl={data.user.githubUrl}
+          onClose={() => setIsEditModalOpen(false)}
+          onSaved={(updatedProfile) => {
+            updateUserName(updatedProfile.username);
+            void queryClient.invalidateQueries();
+            if (updatedProfile.username !== username) {
+              router.replace(
+                `/usuarios/${encodeURIComponent(updatedProfile.username)}`
+              );
+            }
+          }}
+        />
+      )}
     </main>
   );
 }
