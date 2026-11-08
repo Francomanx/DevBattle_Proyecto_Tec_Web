@@ -122,7 +122,7 @@ export function ProfileEditModal({
     if (!validatePasswordFields()) return;
 
     try {
-      await requestCode.mutateAsync();
+      await requestCode.mutateAsync({ newPassword, confirmPassword });
       setCodeRequested(true);
       setSecuritySuccess("Enviamos un código a tu correo registrado. Revisa también spam.");
     } catch (error) {
@@ -146,7 +146,7 @@ export function ProfileEditModal({
     }
 
     try {
-      await changePassword.mutateAsync({ code, newPassword });
+      await changePassword.mutateAsync({ code, newPassword, confirmPassword });
       setNewPassword("");
       setConfirmPassword("");
       setCode("");
