@@ -12,6 +12,7 @@ type ChallengeCardProps = {
     difficulty: "EASY" | "MEDIUM" | "HARD";
     status: "active" | "vote" | "completed";
     formats: string[];
+    tags: string[];
     deadline: string | Date | null;
     host: string;
     participantCount: number;
@@ -122,16 +123,20 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
         {challenge.description}
       </p>
 
-      {/* Tecnologías / Formatos */}
+      {/* Tecnologías / Etiquetas reales */}
       <div className="mt-4 flex flex-wrap gap-2">
-        {challenge.formats.map((format) => (
-          <span
-            key={format}
-            className="border border-[#455b7a] bg-[#161B28] px-2 py-0.5 text-xs text-zinc-300 rounded"
-          >
-            {format}
-          </span>
-        ))}
+        {challenge.tags && challenge.tags.length > 0 ? (
+          challenge.tags.map((tag) => (
+            <span
+              key={tag}
+              className="border border-[#455b7a] bg-[#161B28] px-2 py-0.5 text-xs text-zinc-300 rounded"
+            >
+              {tag}
+            </span>
+          ))
+        ) : (
+          <span className="text-xs text-zinc-500 italic">Sin etiquetas</span>
+        )}
       </div>
 
       {/* Footer: Participantes, XP y botón */}

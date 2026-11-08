@@ -9,30 +9,21 @@ export const profileRouter = createTRPCRouter({
     .input(
       z.object({
         username: z.string().trim().min(1).max(80),
+        currentUserId: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
       const user = await ctx.prisma.user.findUnique({
         where: { username: input.username },
-        //select limita los campos consultados.
-        //no sleccionamos email ni hash de contrasenia, por lo que
-        //no se incluyen en la repsuesta
         select: {
           id: true,
           username: true,
           description: true,
           githubUrl: true,
-          //este nos permite obtener las competencias
-          //en las que hayan participado como HOST o DEV
-          //(en un momento pense en agregar MOD tambien pero
-          //la tarea no especifica la agregacion de esa lista,
-          //asi que eso puede quedar para una tarea de estandarizacion
-          //en caso de que consideren que se deba agregar a la
-          //visualizacion del perifl de usuario)
           competitionParticipants: {
             where: {
               role: {
-                in: ["HOST", "DEV"],
+                in: ["HOST", "DEV", "MOD"],
               },
             },
             select: {
@@ -72,13 +63,59 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
+      const isOwner =
+        ctx.session?.user?.id === user.id ||
+        input.currentUserId === user.id ||
+        input.currentUserId === user.username;
+
       const hostedCompetitions = user.competitionParticipants
         .filter((participation) => participation.role === "HOST")
-        .map((participation) => participation.competition);
+        .map((participation) => participation.competition)
+        .filter((comp) => isOwner || comp.status !== "DRAFT");
 
       const devCompetitions = user.competitionParticipants
         .filter((participation) => participation.role === "DEV")
-        .map((participation) => participation.competition);
+        .map((participation) => participation.competition)
+        .filter((comp) => isOwner || comp.status !== "DRAFT");
+
+      const modCompetitions = user.competitionParticipants
+        .filter((participation) => participation.role === "MOD")
+        .map((participation) => participation.competition)
+        .filter((comp) => isOwner || comp.status !== "DRAFT");
+
+      const receivedModInvitations = isOwner
+        ? await ctx.prisma.modInvitation.findMany({
+            where: {
+              invitedUserId: user.id,
+            },
+            include: {
+              competition: {
+                select: {
+                  id: true,
+                  title: true,
+                  status: true,
+                },
+              },
+              inviter: {
+                select: {
+                  id: true,
+                  username: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          })
+        : [];
+
+      const notifications = isOwner
+        ? await ctx.prisma.notification.findMany({
+            where: {
+              userId: user.id,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 20,
+          })
+        : [];
 
       return {
         user: {
@@ -90,9 +127,13 @@ export const profileRouter = createTRPCRouter({
         stats: {
           hostedCompetitions: hostedCompetitions.length,
           devCompetitions: devCompetitions.length,
+          modCompetitions: modCompetitions.length,
         },
         hostedCompetitions,
         devCompetitions,
+        modCompetitions,
+        receivedModInvitations,
+        notifications,
         projects: user.projects.map((project) => ({
           id: project.id,
           title: project.title,
@@ -101,5 +142,33 @@ export const profileRouter = createTRPCRouter({
           fileFormat: project.competition.fileFormat,
         })),
       };
+    }),
+
+  searchUsers: publicProcedure
+    .input(
+      z.object({
+        query: z.string().trim().max(80),
+        limit: z.number().min(1).max(20).optional().default(8),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const cleanQuery = input.query.replace(/^@+/, "").trim();
+      if (!cleanQuery) return [];
+
+      return ctx.prisma.user.findMany({
+        where: {
+          username: {
+            contains: cleanQuery,
+            mode: "insensitive",
+          },
+        },
+        select: {
+          id: true,
+          username: true,
+          description: true,
+        },
+        take: input.limit,
+        orderBy: { username: "asc" },
+      });
     }),
 });

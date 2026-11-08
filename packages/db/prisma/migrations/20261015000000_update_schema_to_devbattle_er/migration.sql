@@ -2,10 +2,10 @@
 CREATE TYPE "CompetitionStatus" AS ENUM ('DRAFT', 'ACTIVE', 'VOTE', 'COMPLETED');
 
 -- CreateEnum
-CREATE TYPE "CompetitionRole" AS ENUM ('HOST', 'MOD', 'DEV');
+CREATE TYPE "CompetitionRole" AS ENUM ('HOST', 'MOD', 'DEV', 'PARTICIPANT');
 
 -- CreateEnum
-CREATE TYPE "MetricType" AS ENUM ('OBJECTIVE', 'SUBJECTIVE');
+CREATE TYPE "MetricType" AS ENUM ('OBJECTIVE', 'SUBJECTIVE', 'NUMERIC');
 
 -- CreateEnum
 CREATE TYPE "FriendshipStatus" AS ENUM ('PENDING', 'ACCEPTED');
@@ -14,7 +14,7 @@ CREATE TYPE "FriendshipStatus" AS ENUM ('PENDING', 'ACCEPTED');
 CREATE TYPE "GroupRole" AS ENUM ('MEMBER', 'ADMIN');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('STATE_CHANGE', 'DISQUALIFICATION', 'MOD_REMOVAL', 'MESSAGE');
+CREATE TYPE "NotificationType" AS ENUM ('STATE_CHANGE', 'DISQUALIFICATION', 'MOD_REMOVAL', 'MESSAGE', 'INFO');
 
 -- CreateTable
 CREATE TABLE "users" (

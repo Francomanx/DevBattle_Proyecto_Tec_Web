@@ -18,10 +18,16 @@ type AuthSession = {
 
 type AuthMode = "login" | "register";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+function getApiUrl() {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:3001`;
+  }
+  return "http://localhost:3001";
+}
 
 async function readSession() {
-  const response = await fetch(`${apiUrl}/api/auth/session`, {
+  const response = await fetch(`${getApiUrl()}/api/auth/session`, {
     credentials: "include",
   });
   if (!response.ok) throw new Error("No se pudo comprobar la sesión.");
@@ -29,13 +35,13 @@ async function readSession() {
 }
 
 async function signIn(email: string, password: string) {
-  const csrfResponse = await fetch(`${apiUrl}/api/auth/csrf`, {
+  const csrfResponse = await fetch(`${getApiUrl()}/api/auth/csrf`, {
     credentials: "include",
   });
   if (!csrfResponse.ok) throw new Error("No se pudo iniciar la sesión.");
   const { csrfToken } = (await csrfResponse.json()) as { csrfToken: string };
 
-  const response = await fetch(`${apiUrl}/api/auth/callback/credentials`, {
+  const response = await fetch(`${getApiUrl()}/api/auth/callback/credentials`, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -58,13 +64,13 @@ async function signIn(email: string, password: string) {
 }
 
 async function signOut() {
-  const csrfResponse = await fetch(`${apiUrl}/api/auth/csrf`, {
+  const csrfResponse = await fetch(`${getApiUrl()}/api/auth/csrf`, {
     credentials: "include",
   });
   if (!csrfResponse.ok) throw new Error("No se pudo cerrar la sesión.");
   const { csrfToken } = (await csrfResponse.json()) as { csrfToken: string };
 
-  const response = await fetch(`${apiUrl}/api/auth/signout`, {
+  const response = await fetch(`${getApiUrl()}/api/auth/signout`, {
     method: "POST",
     credentials: "include",
     headers: {

@@ -50,7 +50,7 @@ async function main() {
     },
   });
 
-  const userLuis = await prisma.user.create({
+  const userDev3 = await prisma.user.create({
     data: {
       username: "luis_dev",
       email: "luis@devbattle.com",
@@ -68,6 +68,7 @@ async function main() {
       description: "Encuentra el camino más eficiente para flujos de red bajo restricciones de latencia dinámica.",
       rules: "1. Soluciones en cualquier lenguaje compilado o tipado. 2. Límite de tiempo: 2s por caso de prueba. 3. Sin librerías externas para el algoritmo central.",
       fileFormat: "zip",
+      tags: ["Backend", "IA / Machine Learning", "Sistemas"],
       viewCount: 142,
       status: CompetitionStatus.ACTIVE,
       submissionDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // +7 días
@@ -81,6 +82,7 @@ async function main() {
       description: "Construye una aplicación colaborativa en tiempo real utilizando WebSockets o Server-Sent Events.",
       rules: "1. Repositorio público con README claro. 2. Despliegue funcional en producción. 3. Diseño responsive y accesible.",
       fileFormat: "url",
+      tags: ["Fullstack", "WebSockets", "Tiempo Real"],
       viewCount: 380,
       status: CompetitionStatus.VOTING,
       submissionDeadline: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // finalizó hace 2 días
@@ -91,39 +93,14 @@ async function main() {
   const remainingTime = new Date(Date.now() + (1 * 24 * 60 + 19 * 60 + 2) * 60 * 1000);
   const votingTime = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
 
-  const compFb2 = await prisma.competition.create({
+  const compFacebook = await prisma.competition.create({
     data: {
-      title: "Clon de Facebook 2",
+      title: "Clon de Facebook",
       description: "Recrea la experiencia del feed, junto al panel de amigos.",
       rules: "1. Componentes en React modernos. 2. Feed funcional con posts y likes. 3. Panel de amigos interactivo.",
       fileFormat: "zip",
+      tags: ["Frontend", "React", "UI/UX"],
       viewCount: 240,
-      status: CompetitionStatus.ACTIVE,
-      submissionDeadline: remainingTime,
-      votingDeadline: votingTime,
-    },
-  });
-
-  const compFb3 = await prisma.competition.create({
-    data: {
-      title: "Clon de Facebook 3",
-      description: "Recrea la experiencia del feed, junto al panel de amigos.",
-      rules: "1. Componentes en React modernos. 2. Feed funcional con posts y likes. 3. Panel de amigos interactivo.",
-      fileFormat: "zip",
-      viewCount: 310,
-      status: CompetitionStatus.ACTIVE,
-      submissionDeadline: remainingTime,
-      votingDeadline: votingTime,
-    },
-  });
-
-  const compFb4 = await prisma.competition.create({
-    data: {
-      title: "Clon de Facebook 4",
-      description: "Recrea la experiencia del feed, junto al panel de amigos.",
-      rules: "1. Componentes en React modernos. 2. Feed funcional con posts y likes. 3. Panel de amigos interactivo.",
-      fileFormat: "link",
-      viewCount: 420,
       status: CompetitionStatus.ACTIVE,
       submissionDeadline: remainingTime,
       votingDeadline: votingTime,
@@ -209,6 +186,18 @@ async function main() {
       description: "Pizarra interactiva colaborativa con sincronización de estado CRDTs en tiempo real.",
       repoUrl: "https://github.com/matias-dev/syncboard",
       fileUrl: "https://syncboard-demo.vercel.app",
+    },
+  });
+
+const project3 = await prisma.project.create({
+    data: {
+      competitionId: compHackathon.id,
+      authorId: userDev3.id,
+      title: "AutoBot Script",
+      description: "Script automatizado para generar votos y visitas artificiales en la plataforma.",
+      repoUrl: "https://github.com/lucia-coder/autobot",
+      isDisqualified: true,
+      disqualificationReason: "Uso de bots para manipular los votos de la competencia, violando los términos y condiciones.",
     },
   });
 

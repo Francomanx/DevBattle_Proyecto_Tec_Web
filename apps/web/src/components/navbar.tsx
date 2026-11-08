@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
+import { NotificationsDropdown } from "@/components/notifications-dropdown";
 
 export function Navbar() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
@@ -33,12 +34,6 @@ export function Navbar() {
             >
               Explorar Retos
             </Link>
-            <Link
-              href="#"
-              className="px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:text-white"
-            >
-              Ranking Global
-            </Link>
           </nav>
         </div>
 
@@ -58,13 +53,16 @@ export function Navbar() {
           {isLoading ? (
             <span className="text-xs text-slate-400">Comprobando sesión…</span>
           ) : isAuthenticated && user ? (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="flex items-center gap-2.5 rounded-lg p-1 text-left transition hover:bg-[#131E35] focus:outline-none"
-                aria-expanded={menuOpen}
-              >
+            <div className="flex items-center gap-3">
+              <NotificationsDropdown />
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="flex items-center gap-2.5 rounded-lg p-1 text-left transition hover:bg-[#131E35] focus:outline-none"
+                  aria-expanded={menuOpen}
+                >
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/90 text-[#0B111E] font-bold text-sm shadow">
                   {user.name
                     .split(" ")
@@ -87,12 +85,19 @@ export function Navbar() {
                     <Link
                       href={`/usuarios/${encodeURIComponent(user.username)}`}
                       onClick={() => setMenuOpen(false)}
-                      className="text-sm font-semibold text-white hover:text-orange-300"
+                      className="text-sm font-semibold text-white hover:text-orange-300 block"
                     >
                       Ver mi perfil
                     </Link>
                     <p className="text-xs text-slate-400">@{user.username}</p>
                   </div>
+                  <Link
+                    href={`/usuarios/${encodeURIComponent(user.username)}?tab=notifications`}
+                    onClick={() => setMenuOpen(false)}
+                    className="w-full text-left rounded-lg px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-[#18253D] hover:text-white block"
+                  >
+                    Notificaciones
+                  </Link>
                   <button
                     type="button"
                     onClick={() => {
@@ -106,6 +111,7 @@ export function Navbar() {
                 </div>
               )}
             </div>
+          </div>
           ) : (
             <Link
               href="/login"
