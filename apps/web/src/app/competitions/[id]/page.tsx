@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
 import { useAuth } from "@/context/auth-context";
+import { EditCompetitionForm } from "@/components/edit-competition-form";
 
 function CompetitionDetailContent() {
   const params = useParams();
@@ -20,6 +21,8 @@ function CompetitionDetailContent() {
 
   const [isActivating, setIsActivating] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
+
+  const [isEditing, setIsEditing] = useState(false);
 
   const [modUsername, setModUsername] = useState("");
   const [modError, setModError] = useState<string | null>(null);
@@ -326,19 +329,29 @@ function CompetitionDetailContent() {
     0
   );
 
-
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
-      {/* Top Navigation / Breadcrumb */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-white transition"
-        >
-          <span>← Volver a Explorar Retos</span>
-        </Link>
-        <span className="text-xs text-slate-500 font-mono">ID: {competition.id}</span>
-      </div>
+      {isEditing ? (
+        <EditCompetitionForm 
+          competition={competition} 
+          onCancel={() => setIsEditing(false)} 
+          onSuccess={() => {
+            setIsEditing(false);
+            refetch();
+          }} 
+        />
+      ) : (
+        <>
+          {/* Top Navigation / Breadcrumb */}
+          <div className="flex items-center justify-between">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-white transition"
+            >
+              <span>← Volver a Explorar Retos</span>
+            </Link>
+            <span className="text-xs text-slate-500 font-mono">ID: {competition.id}</span>
+          </div>
 
       {/* Main Banner Card */}
       <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 sm:p-8 shadow-xl space-y-4">
@@ -378,23 +391,36 @@ function CompetitionDetailContent() {
             {competition.title}
           </h1>
 
-          {competition.status === "DRAFT" && isHost && (
-            <button
-              type="button"
-              onClick={handleActivateCompetition}
-              disabled={isActivating}
-              className="flex-shrink-0 rounded-xl bg-[#FF6B00] px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-[#E05E00] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isActivating ? (
-                <>
-                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  <span>Activando…</span>
-                </>
-              ) : (
-                <span>Activar competencia</span>
-              )}
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            
+            {isHost && competition.status !== "COMPLETED" && (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="flex-shrink-0 rounded-xl border border-[#4A5568] bg-[#2D3748] px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-[#4A5568] active:scale-[0.98]"
+              >
+                Editar competencia
+              </button>
+            )}
+
+            {competition.status === "DRAFT" && isHost && (
+              <button
+                type="button"
+                onClick={handleActivateCompetition}
+                disabled={isActivating}
+                className="flex-shrink-0 rounded-xl bg-[#FF6B00] px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-[#E05E00] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isActivating ? (
+                  <>
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Activando…</span>
+                  </>
+                ) : (
+                  <span>Activar competencia</span>
+                )}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Feedback Messages */}
@@ -969,6 +995,8 @@ function CompetitionDetailContent() {
           </div>
         )}
       </div>
+        </>
+      )}
     </main>
   );
 }
