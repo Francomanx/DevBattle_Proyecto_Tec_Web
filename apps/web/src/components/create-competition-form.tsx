@@ -72,6 +72,25 @@ export const EVALUATION_PRESETS: EvaluationPreset[] = [
   },
 ];
 
+  const resetForm = () => {
+    setTitle("");
+    setSelectedCategories(["Backend"]);
+    setNewTagInput("");
+    setShowAddTag(false);
+    setDescription("");
+    setRules("");
+    setSelectedFormats(["zip"]);
+    setIsFormatDropdownOpen(false);
+    setMetrics([
+      { id: "metric-1", name: "Exactitud y Casos Borde", type: "OBJECTIVE", weight: 45 },
+      { id: "metric-2", name: "Rendimiento y Eficiencia", type: "OBJECTIVE", weight: 30 },
+      { id: "metric-3", name: "Arquitectura y Buenas Prácticas", type: "SUBJECTIVE", weight: 25 },
+    ]);
+    setSubmissionDeadline(getFormattedDefaultDate(7));
+    setVotingDeadline(getFormattedDefaultDate(14));
+    setHasAttemptedSubmit(false);
+  };
+
 function getFormattedDefaultDate(daysAhead: number): string {
   const date = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
   date.setHours(23, 59, 0, 0);
@@ -346,6 +365,8 @@ export function CreateCompetitionForm() {
         );
       }
 
+      resetForm();
+
       // Redirect to competition detail page in draft status
       router.push(`/competitions/${competitionId}`);
     } catch (err: unknown) {
@@ -413,6 +434,8 @@ export function CreateCompetitionForm() {
           "No se recibió el ID de la competencia creada por el servidor."
         );
       }
+
+      resetForm();
 
       // Redirect to competition detail page (which is now active)
       router.push(`/competitions/${competitionId}`);
