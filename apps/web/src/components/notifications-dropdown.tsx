@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { useTRPC } from "@/trpc/client";
+import { getPusherClient, getUserChannelName } from "@/lib/pusher";
 
 type NotificationFilter = "all" | "invitations" | "unread";
 
@@ -26,6 +27,10 @@ function getNotificationTypeBadge(type: string) {
         className: "bg-blue-500/20 text-blue-300 border-blue-500/30",
       };
     case "MESSAGE":
+      return {
+        label: "Mensaje",
+        className: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+      };
     default:
       return {
         label: "Aviso",
@@ -94,6 +99,35 @@ export function NotificationsDropdown() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen]);
+
+  // Escuchar notificaciones en tiempo real vía Pusher
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+
+    const pusher = getPusherClient(user.id);
+    const channelName = getUserChannelName(user.id);
+    const channel = pusher.subscribe(channelName);
+
+    const handleUpdate = () => {
+      void refetchCount();
+      if (isOpen) {
+        void refetchList();
+      }
+    };
+
+    channel.bind("notification-received", handleUpdate);
+    channel.bind("new-message-notification", handleUpdate);
+    channel.bind("friend-request-received", handleUpdate);
+    channel.bind("friend-request-accepted", handleUpdate);
+
+    return () => {
+      channel.unbind("notification-received", handleUpdate);
+      channel.unbind("new-message-notification", handleUpdate);
+      channel.unbind("friend-request-received", handleUpdate);
+      channel.unbind("friend-request-accepted", handleUpdate);
+      pusher.unsubscribe(channelName);
+    };
+  }, [isAuthenticated, user?.id, isOpen, refetchCount, refetchList]);
 
   if (!isAuthenticated || !user) {
     return null;
@@ -383,7 +417,23 @@ export function NotificationsDropdown() {
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
+                    <div
+                      className={`flex-1 min-w-0 ${n.type === "MESSAGE" ? "cursor-pointer" : ""}`}
+                      onClick={() => {
+                        if (n.type === "MESSAGE") {
+                          const match = n.content.match(/@([a-zA-Z0-9_-]+)/);
+                          if (match) {
+                            window.dispatchEvent(
+                              new CustomEvent("open-chat", { detail: { username: match[1] } })
+                            );
+                            setIsOpen(false);
+                            if (!n.isRead) {
+                              void handleMarkSingleRead(n.id);
+                            }
+                          }
+                        }
+                      }}
+                    >
                       <p className={`text-xs leading-relaxed ${!n.isRead ? "text-white font-medium" : "text-slate-300"}`}>
                         {n.content}
                       </p>
@@ -395,6 +445,11 @@ export function NotificationsDropdown() {
                         >
                           {getNotificationTypeBadge(n.type).label}
                         </span>
+                        {n.type === "MESSAGE" && (
+                          <span className="text-[10px] text-orange-400 font-semibold hover:underline">
+                            Abrir chat
+                          </span>
+                        )}
                         <span className="text-[10px] text-slate-500">
                           {new Date(n.createdAt).toLocaleDateString("es-ES", {
                             day: "numeric",

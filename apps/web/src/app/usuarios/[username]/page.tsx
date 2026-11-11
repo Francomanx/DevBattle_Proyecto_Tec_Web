@@ -37,6 +37,10 @@ function getNotificationTypeBadge(type: string) {
         className: "bg-blue-500/20 text-blue-300 border-blue-500/30",
       };
     case "MESSAGE":
+      return {
+        label: "Mensaje",
+        className: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+      };
     default:
       return {
         label: "Aviso",

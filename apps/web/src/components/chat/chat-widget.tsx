@@ -61,6 +61,34 @@ function ChatWidgetContent({ user }: { user: UserSession }) {
     trpc.chat.getFriends.queryOptions(undefined)
   );
 
+  // Listener para abrir el chat directamente desde notificaciones u otros componentes
+  useEffect(() => {
+    const handleOpenChat = (e: CustomEvent<{ username?: string; friendId?: string }>) => {
+      setIsOpen(true);
+      if (e.detail?.friendId) {
+        const found = friends.find((f) => f.id === e.detail.friendId);
+        if (found) setActiveFriend(found);
+      } else if (e.detail?.username) {
+        const found = friends.find(
+          (f) => f.username.toLowerCase() === e.detail.username?.toLowerCase()
+        );
+        if (found) setActiveFriend(found);
+      }
+    };
+
+    window.addEventListener("open-chat", handleOpenChat as EventListener);
+    return () => {
+      window.removeEventListener("open-chat", handleOpenChat as EventListener);
+    };
+  }, [friends]);
+
+  // Invalidate notifications when active friend is opened so the bell count updates immediately
+  useEffect(() => {
+    if (activeFriend) {
+      void queryClient.invalidateQueries({ queryKey: [["notification"]] });
+    }
+  }, [activeFriend, queryClient]);
+
   const { data: requests = { incoming: [], outgoing: [] }, refetch: refetchRequests } = useQuery(
     trpc.chat.getFriendRequests.queryOptions(undefined)
   );

@@ -6,6 +6,10 @@ import {
   getUserChannelName,
   triggerPusherEvent,
 } from "../services/pusher.service";
+import {
+  upsertMessageNotification,
+  markFriendMessageNotificationsAsRead,
+} from "../services/notification.service";
 
 export const chatRouter = createTRPCRouter({
   getFriends: protectedProcedure.query(async ({ ctx }) => {
@@ -329,6 +333,15 @@ export const chatRouter = createTRPCRouter({
         },
       });
 
+      // Mark any unread message notifications from this friend as read when reading messages
+      const friendUser = await ctx.prisma.user.findUnique({
+        where: { id: input.friendId },
+        select: { username: true },
+      });
+      if (friendUser) {
+        await markFriendMessageNotificationsAsRead(currentUserId, friendUser.username);
+      }
+
       return messages;
     }),
 
@@ -394,6 +407,13 @@ export const chatRouter = createTRPCRouter({
         senderUsername: message.sender?.username ?? "Usuario",
         content: message.content,
         createdAt: message.createdAt,
+      });
+
+      // Registrar o actualizar notificacion unificada por amigo para no saturar la bandeja
+      await upsertMessageNotification({
+        senderId,
+        senderUsername: message.sender?.username ?? "Usuario",
+        receiverId: input.receiverId,
       });
 
       return message;

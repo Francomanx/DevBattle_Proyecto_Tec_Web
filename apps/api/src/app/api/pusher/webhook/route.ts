@@ -5,6 +5,7 @@ import {
   pusherServer,
   triggerPusherEvent,
 } from "../../../../server/services/pusher.service";
+import { upsertMessageNotification } from "../../../../server/services/notification.service";
 
 export async function POST(req: Request) {
   try {
@@ -69,6 +70,23 @@ export async function POST(req: Request) {
           });
 
           if (friendship) {
+            // Verificar si el mensaje ya fue persistido recientemente por la mutacion tRPC
+            const recentDuplicate = await prisma.message.findFirst({
+              where: {
+                senderId,
+                receiverId,
+                content,
+                createdAt: {
+                  gte: new Date(Date.now() - 3000),
+                },
+              },
+            });
+
+            if (recentDuplicate) {
+              processedCount++;
+              continue;
+            }
+
             const savedMessage = await prisma.message.create({
               data: {
                 senderId,
@@ -113,6 +131,13 @@ export async function POST(req: Request) {
                 createdAt: savedMessage.createdAt,
               }
             );
+
+            // Registrar o actualizar notificacion unificada por amigo para no saturar la bandeja
+            await upsertMessageNotification({
+              senderId,
+              senderUsername: savedMessage.sender.username,
+              receiverId,
+            });
 
             processedCount++;
           }
