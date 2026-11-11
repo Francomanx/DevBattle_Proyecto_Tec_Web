@@ -7,6 +7,7 @@ import { projectRouter } from "./project";
 import { profileRouter } from "./profile";
 import { rankingRouter } from "../back/ranking.router";
 import { notificationRouter } from "./notification";
+import { chatRouter } from "./chat";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -17,6 +18,7 @@ export const appRouter = createTRPCRouter({
   profile: profileRouter,
   ranking: rankingRouter,
   notification: notificationRouter,
+  chat: chatRouter,
 });
 
 export type AppRouter = typeof appRouter;

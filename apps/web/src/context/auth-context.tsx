@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { resetPusherClient } from "@/lib/pusher";
 
 export interface UserSession {
   id: string;
@@ -212,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("No se pudo cerrar la sesión.");
       }
 
+      resetPusherClient();
       setUser(null);
     } catch (error) {
       setAuthError(

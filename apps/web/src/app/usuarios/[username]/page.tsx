@@ -74,10 +74,15 @@ function UserProfileContent() {
 
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [friendActionFeedback, setFriendActionFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const respondMutation = useMutation(trpc.competition.respondModInvitation.mutationOptions());
   const markAsReadMutation = useMutation(trpc.notification.markAsRead.mutationOptions());
   const deleteNotificationMutation = useMutation(trpc.notification.delete.mutationOptions());
+  const sendFriendRequestMutation = useMutation(trpc.chat.sendFriendRequest.mutationOptions());
 
   const { data, isPending, error, refetch } = useQuery(
     trpc.profile.byUsername.queryOptions({
@@ -270,6 +275,41 @@ function UserProfileContent() {
           >
             Editar perfil
           </button>
+        )}
+
+        {!isOwnProfile && currentUser && (
+          <div className="mt-6 space-y-2">
+            <button
+              type="button"
+              disabled={sendFriendRequestMutation.isPending}
+              onClick={async () => {
+                setFriendActionFeedback(null);
+                try {
+                  const res = await sendFriendRequestMutation.mutateAsync({
+                    username: data.user.username,
+                  });
+                  setFriendActionFeedback({ type: "success", text: res.message });
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : "Error al enviar la solicitud.";
+                  setFriendActionFeedback({ type: "error", text: msg });
+                }
+              }}
+              className="w-full rounded-lg bg-[#FF6B00] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#E05E00] disabled:opacity-50"
+            >
+              {sendFriendRequestMutation.isPending ? "Enviando..." : "Enviar Solicitud de Amistad"}
+            </button>
+            {friendActionFeedback && (
+              <div
+                className={`rounded-lg border p-2 text-xs font-medium ${
+                  friendActionFeedback.type === "success"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    : "border-red-500/30 bg-red-500/10 text-red-300"
+                }`}
+              >
+                {friendActionFeedback.text}
+              </div>
+            )}
+          </div>
         )}
       </aside>
 
