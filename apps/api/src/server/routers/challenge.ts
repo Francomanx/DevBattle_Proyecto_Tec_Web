@@ -204,7 +204,10 @@ export const challengeRouter = createTRPCRouter({
   edit: protectedProcedure
     .input(editCompetitionSchema)
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Debes iniciar sesión" });
+      }
 
       const competition = await ctx.prisma.competition.findUnique({
         where: { id: input.id },
@@ -274,6 +277,10 @@ export const challengeRouter = createTRPCRouter({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Debe haber al menos una métrica definida." });
       }
 
+      const isVoteDateChanged =
+        input.votingDeadline !== undefined &&
+        input.votingDeadline.getTime() !== competition.votingDeadline.getTime();
+
       const updatedCompetition = await ctx.prisma.competition.update({
         where: { id: input.id },
         data: {
@@ -300,6 +307,36 @@ export const challengeRouter = createTRPCRouter({
           metrics: true,
         },
       });
+
+      if (
+        (status === CompetitionStatus.ACTIVE || status === CompetitionStatus.VOTING) &&
+        (isSubDateChanged || isVoteDateChanged || isMetricsChanged)
+      ) {
+        const otherParticipants = await ctx.prisma.competitionParticipant.findMany({
+          where: {
+            competitionId: updatedCompetition.id,
+            userId: { not: userId },
+          },
+          select: { userId: true },
+        });
+
+        if (otherParticipants.length > 0) {
+          let changeDetail = "las fechas";
+          if (isMetricsChanged && (isSubDateChanged || isVoteDateChanged)) {
+            changeDetail = "las fechas y criterios de evaluación";
+          } else if (isMetricsChanged) {
+            changeDetail = "las métricas de evaluación";
+          }
+
+          await ctx.prisma.notification.createMany({
+            data: otherParticipants.map((p) => ({
+              userId: p.userId,
+              content: `Se han actualizado ${changeDetail} de la competencia "${updatedCompetition.title}".`,
+              type: "STATE_CHANGE",
+            })),
+          });
+        }
+      }
 
       return updatedCompetition;
     }),

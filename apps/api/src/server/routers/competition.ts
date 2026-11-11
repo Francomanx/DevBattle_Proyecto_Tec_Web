@@ -309,6 +309,19 @@ export const competitionRouter = createTRPCRouter({
         });
       }
 
+      const regularParticipants = competition.participants.filter(
+        (p) => p.role === "DEV"
+      );
+      if (regularParticipants.length > 0) {
+        await ctx.prisma.notification.createMany({
+          data: regularParticipants.map((part) => ({
+            userId: part.userId,
+            content: `La competencia "${competition.title}" ha sido activada oficialmente y se encuentra abierta para envíos.`,
+            type: "STATE_CHANGE",
+          })),
+        });
+      }
+
       return {
         success: true,
         competitionId: updated.id,

@@ -19,6 +19,32 @@ const statusStyles: Record<string, string> = {
   COMPLETED: "border-purple-500/30 bg-purple-500/10 text-purple-300",
 };
 
+function getNotificationTypeBadge(type: string) {
+  switch (type) {
+    case "DISQUALIFICATION":
+      return {
+        label: "Descalificación",
+        className: "bg-red-500/20 text-red-300 border-red-500/30",
+      };
+    case "MOD_REMOVAL":
+      return {
+        label: "Moderación",
+        className: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+      };
+    case "STATE_CHANGE":
+      return {
+        label: "Estado",
+        className: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+      };
+    case "MESSAGE":
+    default:
+      return {
+        label: "Aviso",
+        className: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+      };
+  }
+}
+
 // funcion interna de la pagina de perfil
 function UserProfileContent() {
   const params = useParams<{ username: string }>();
@@ -541,15 +567,24 @@ function UserProfileContent() {
                                     <p className={`${!n.isRead ? "text-white font-medium" : "text-slate-300"}`}>
                                       {n.content}
                                     </p>
-                                    <p className="text-slate-500 text-[10px] mt-0.5">
-                                      {new Date(n.createdAt).toLocaleDateString("es-ES", {
-                                        day: "numeric",
-                                        month: "short",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span
+                                        className={`rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase ${
+                                          getNotificationTypeBadge(n.type).className
+                                        }`}
+                                      >
+                                        {getNotificationTypeBadge(n.type).label}
+                                      </span>
+                                      <span className="text-slate-500 text-[10px]">
+                                        {new Date(n.createdAt).toLocaleDateString("es-ES", {
+                                          day: "numeric",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 

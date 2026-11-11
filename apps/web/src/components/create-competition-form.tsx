@@ -72,25 +72,6 @@ export const EVALUATION_PRESETS: EvaluationPreset[] = [
   },
 ];
 
-  const resetForm = () => {
-    setTitle("");
-    setSelectedCategories(["Backend"]);
-    setNewTagInput("");
-    setShowAddTag(false);
-    setDescription("");
-    setRules("");
-    setSelectedFormats(["zip"]);
-    setIsFormatDropdownOpen(false);
-    setMetrics([
-      { id: "metric-1", name: "Exactitud y Casos Borde", type: "OBJECTIVE", weight: 45 },
-      { id: "metric-2", name: "Rendimiento y Eficiencia", type: "OBJECTIVE", weight: 30 },
-      { id: "metric-3", name: "Arquitectura y Buenas Prácticas", type: "SUBJECTIVE", weight: 25 },
-    ]);
-    setSubmissionDeadline(getFormattedDefaultDate(7));
-    setVotingDeadline(getFormattedDefaultDate(14));
-    setHasAttemptedSubmit(false);
-  };
-
 function getFormattedDefaultDate(daysAhead: number): string {
   const date = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
   date.setHours(23, 59, 0, 0);
@@ -155,6 +136,25 @@ export function CreateCompetitionForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  const resetForm = () => {
+    setTitle("");
+    setSelectedCategories(["Backend"]);
+    setNewTagInput("");
+    setShowAddTag(false);
+    setDescription("");
+    setRules("");
+    setSelectedFormats(["zip"]);
+    setIsFormatDropdownOpen(false);
+    setMetrics([
+      { id: "metric-1", name: "Exactitud y Casos Borde", type: "OBJECTIVE", weight: 45 },
+      { id: "metric-2", name: "Rendimiento y Eficiencia", type: "OBJECTIVE", weight: 30 },
+      { id: "metric-3", name: "Arquitectura y Buenas Prácticas", type: "SUBJECTIVE", weight: 25 },
+    ]);
+    setSubmissionDeadline(getFormattedDefaultDate(7));
+    setVotingDeadline(getFormattedDefaultDate(14));
+    setHasAttemptedSubmit(false);
+  };
 
   // Category toggle
   const toggleCategory = (cat: string) => {
@@ -1097,6 +1097,12 @@ export function CreateCompetitionForm() {
             )}
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="w-full rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
+            {errorMessage}
+          </div>
+        )}
 
         {/* Buttons */}
         <div className="flex items-center gap-3">

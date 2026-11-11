@@ -1,77 +1,78 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
 
-type MetricType = "OBJECTIVE" | "SUBJECTIVE";
 type Status = "DRAFT" | "ACTIVE" | "VOTING" | "COMPLETED";
+
+interface CompetitionMetric {
+  name: string;
+  type: "OBJECTIVE" | "SUBJECTIVE";
+  maxValue?: number;
+  weight: number;
+}
+
+interface CompetitionData {
+  id: string;
+  status: Status;
+  title?: string;
+  description?: string;
+  rules?: string;
+  fileFormat?: string;
+  submissionDeadline: string | Date;
+  votingDeadline: string | Date;
+  metrics?: CompetitionMetric[];
+}
 
 interface EditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  competition: any;
+  competition: CompetitionData;
   onSuccess: () => void;
 }
 
-export default function EditCompetitionModal({ isOpen, onClose, competition, onSuccess }: EditModalProps) {
+const toLocalDatetime = (dateString: string | Date | undefined) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+};
+
+function EditCompetitionModalContent({
+  onClose,
+  competition,
+  onSuccess,
+}: {
+  onClose: () => void;
+  competition: CompetitionData;
+  onSuccess: () => void;
+}) {
   const trpc = useTRPC();
   const editMutation = useMutation(trpc.challenge.edit.mutationOptions());
 
-  const toLocalDatetime = (dateString: string | Date) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-    return date.toISOString().slice(0, 16);
-  };
-
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    rules: "",
-    fileFormat: "",
-    submissionDeadline: "",
-    votingDeadline: "",
+    title: competition.title || "",
+    description: competition.description || "",
+    rules: competition.rules || "",
+    fileFormat: competition.fileFormat || "",
+    submissionDeadline: toLocalDatetime(competition.submissionDeadline),
+    votingDeadline: toLocalDatetime(competition.votingDeadline),
   });
-  
-  const [metrics, setMetrics] = useState<any[]>([]);
+
+  const [metrics] = useState<CompetitionMetric[]>(competition.metrics || []);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen && competition) {
-      setFormData({
-        title: competition.title || "",
-        description: competition.description || "",
-        rules: competition.rules || "",
-        fileFormat: competition.fileFormat || "",
-        submissionDeadline: toLocalDatetime(competition.submissionDeadline),
-        votingDeadline: toLocalDatetime(competition.votingDeadline),
-      });
-      setMetrics(competition.metrics || []);
-      setError(null);
-    }
-  }, [isOpen, competition]);
-
-  if (!isOpen) return null;
-
-  const status = competition.status as Status;
+  const status = competition.status;
   const canEditEverything = status === "DRAFT";
   const canEditActive = status === "ACTIVE";
-  const canEditVoting = status === "VOTING";
 
   const isTitleDisabled = !canEditEverything;
   const isRulesDisabled = !canEditEverything;
   const isFormatDisabled = !canEditEverything;
   const isSubDateDisabled = !canEditEverything && !canEditActive;
-  const isMetricsDisabled = !canEditEverything && !canEditActive;
   const isDescDisabled = false;
   const isVoteDateDisabled = false;
-
-  const handleMetricChange = (index: number, field: string, value: any) => {
-    const newMetrics = [...metrics];
-    newMetrics[index] = { ...newMetrics[index], [field]: value };
-    setMetrics(newMetrics);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,11 +82,11 @@ export default function EditCompetitionModal({ isOpen, onClose, competition, onS
     const voteDate = new Date(formData.votingDeadline);
 
     if (voteDate <= subDate) {
-      setError("La fecha de votación debe ser posterior a la de recepción.");
+      setError("La fecha de votacion debe ser posterior a la de recepcion.");
       return;
     }
     if (metrics.length === 0) {
-      setError("Debe haber al menos una métrica de evaluación.");
+      setError("Debe haber al menos una metrica de evaluacion.");
       return;
     }
 
@@ -98,17 +99,21 @@ export default function EditCompetitionModal({ isOpen, onClose, competition, onS
         fileFormat: formData.fileFormat,
         submissionDeadline: subDate,
         votingDeadline: voteDate,
-        metrics: metrics.map(m => ({
+        metrics: metrics.map((m) => ({
           name: m.name,
           type: m.type,
-          maxValue: Number(m.maxValue),
+          maxValue: Number(m.maxValue ?? 5),
           weight: Number(m.weight),
-        }))
+        })),
       });
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Ocurrió un error al guardar los cambios.");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Ocurrio un error al guardar los cambios.";
+      setError(message);
     }
   };
 
@@ -124,7 +129,7 @@ export default function EditCompetitionModal({ isOpen, onClose, competition, onS
               {isTitleDisabled && " Algunos campos están bloqueados por las reglas del estado."}
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-base font-bold">X</button>
         </div>
 
         {error && (
@@ -229,5 +234,21 @@ export default function EditCompetitionModal({ isOpen, onClose, competition, onS
         </form>
       </div>
     </div>
+  );
+}
+
+export default function EditCompetitionModal({
+  isOpen,
+  onClose,
+  competition,
+  onSuccess,
+}: EditModalProps) {
+  if (!isOpen || !competition) return null;
+  return (
+    <EditCompetitionModalContent
+      onClose={onClose}
+      competition={competition}
+      onSuccess={onSuccess}
+    />
   );
 }

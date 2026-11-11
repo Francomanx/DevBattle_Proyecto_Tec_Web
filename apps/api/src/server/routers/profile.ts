@@ -389,6 +389,13 @@ export const profileRouter = createTRPCRouter({
           where: { userId, id: { not: codeRecord.id }, consumedAt: null },
           data: { consumedAt: new Date() },
         });
+        await transaction.notification.create({
+          data: {
+            userId,
+            content: "Tu contraseña ha sido actualizada exitosamente.",
+            type: "MESSAGE",
+          },
+        });
       });
 
       return { success: true };

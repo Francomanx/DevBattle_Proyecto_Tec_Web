@@ -77,8 +77,31 @@ const toLocalDatetime = (dateInput: string | Date | undefined) => {
   return date.toISOString().slice(0, 16);
 };
 
+type MetricType = "OBJECTIVE" | "SUBJECTIVE";
+
+interface CompetitionMetricData {
+  id?: string;
+  name: string;
+  type: MetricType | string;
+  weight: number;
+  maxValue?: number;
+}
+
+interface CompetitionDetail {
+  id: string;
+  status: "DRAFT" | "ACTIVE" | "VOTING" | "COMPLETED" | string;
+  title?: string | null;
+  description?: string | null;
+  rules?: string | null;
+  fileFormat?: string | null;
+  tags?: string[];
+  submissionDeadline?: string | Date;
+  votingDeadline?: string | Date;
+  metrics?: CompetitionMetricData[];
+}
+
 interface EditFormProps {
-  competition: any;
+  competition: CompetitionDetail;
   onCancel: () => void;
   onSuccess: () => void;
 }
@@ -114,10 +137,10 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
   const [isFormatDropdownOpen, setIsFormatDropdownOpen] = useState(false);
   
   const [metrics, setMetrics] = useState<MetricItem[]>(
-    competition?.metrics?.map((m: any, idx: number) => ({
+    competition?.metrics?.map((m: CompetitionMetricData, idx: number) => ({
       id: `metric-${idx}`,
       name: m.name,
-      type: m.type,
+      type: m.type === "SUBJECTIVE" ? "SUBJECTIVE" : "OBJECTIVE",
       weight: m.weight,
     })) || []
   );
@@ -253,7 +276,22 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
     }
 
   try {
-      const payload: any = { 
+      const payload: {
+        id: string;
+        title?: string;
+        description?: string;
+        rules?: string;
+        fileFormat?: string;
+        tags?: string[];
+        submissionDeadline?: Date;
+        votingDeadline?: Date;
+        metrics?: {
+          name: string;
+          type: MetricType;
+          maxValue: number;
+          weight: number;
+        }[];
+      } = { 
         id: competition.id 
       };
 
@@ -279,8 +317,9 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
 
       await queryClient.invalidateQueries({ queryKey: [["competition", "byId"]] });
       onSuccess();
-    } catch (err: any) {
-      setErrorMessage(err.message || "Ocurrió un error al guardar los cambios.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Ocurrio un error al guardar los cambios.";
+      setErrorMessage(message);
     }
   };
 
