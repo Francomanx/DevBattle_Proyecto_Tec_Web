@@ -89,11 +89,14 @@ export const projectRouter = createTRPCRouter({
             select: {
               id: true,
               title: true,
+              status: true,
+              metrics: true,
               participants: {
                 select: { userId: true, role: true },
               },
             },
           },
+          votes: true,
         },
       });
 
