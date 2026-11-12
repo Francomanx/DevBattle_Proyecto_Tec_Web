@@ -19,6 +19,36 @@ const statusStyles: Record<string, string> = {
   COMPLETED: "border-purple-500/30 bg-purple-500/10 text-purple-300",
 };
 
+function getNotificationTypeBadge(type: string) {
+  switch (type) {
+    case "DISQUALIFICATION":
+      return {
+        label: "Descalificación",
+        className: "bg-red-500/20 text-red-300 border-red-500/30",
+      };
+    case "MOD_REMOVAL":
+      return {
+        label: "Moderación",
+        className: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+      };
+    case "STATE_CHANGE":
+      return {
+        label: "Estado",
+        className: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+      };
+    case "MESSAGE":
+      return {
+        label: "Mensaje",
+        className: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+      };
+    default:
+      return {
+        label: "Aviso",
+        className: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+      };
+  }
+}
+
 // funcion interna de la pagina de perfil
 function UserProfileContent() {
   const params = useParams<{ username: string }>();
@@ -48,10 +78,15 @@ function UserProfileContent() {
 
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [friendActionFeedback, setFriendActionFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const respondMutation = useMutation(trpc.competition.respondModInvitation.mutationOptions());
   const markAsReadMutation = useMutation(trpc.notification.markAsRead.mutationOptions());
   const deleteNotificationMutation = useMutation(trpc.notification.delete.mutationOptions());
+  const sendFriendRequestMutation = useMutation(trpc.chat.sendFriendRequest.mutationOptions());
 
   const { data, isPending, error, refetch } = useQuery(
     trpc.profile.byUsername.queryOptions({
@@ -244,6 +279,41 @@ function UserProfileContent() {
           >
             Editar perfil
           </button>
+        )}
+
+        {!isOwnProfile && currentUser && (
+          <div className="mt-6 space-y-2">
+            <button
+              type="button"
+              disabled={sendFriendRequestMutation.isPending}
+              onClick={async () => {
+                setFriendActionFeedback(null);
+                try {
+                  const res = await sendFriendRequestMutation.mutateAsync({
+                    username: data.user.username,
+                  });
+                  setFriendActionFeedback({ type: "success", text: res.message });
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : "Error al enviar la solicitud.";
+                  setFriendActionFeedback({ type: "error", text: msg });
+                }
+              }}
+              className="w-full rounded-lg bg-[#FF6B00] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#E05E00] disabled:opacity-50"
+            >
+              {sendFriendRequestMutation.isPending ? "Enviando..." : "Enviar Solicitud de Amistad"}
+            </button>
+            {friendActionFeedback && (
+              <div
+                className={`rounded-lg border p-2 text-xs font-medium ${
+                  friendActionFeedback.type === "success"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    : "border-red-500/30 bg-red-500/10 text-red-300"
+                }`}
+              >
+                {friendActionFeedback.text}
+              </div>
+            )}
+          </div>
         )}
       </aside>
 
@@ -541,15 +611,24 @@ function UserProfileContent() {
                                     <p className={`${!n.isRead ? "text-white font-medium" : "text-slate-300"}`}>
                                       {n.content}
                                     </p>
-                                    <p className="text-slate-500 text-[10px] mt-0.5">
-                                      {new Date(n.createdAt).toLocaleDateString("es-ES", {
-                                        day: "numeric",
-                                        month: "short",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span
+                                        className={`rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase ${
+                                          getNotificationTypeBadge(n.type).className
+                                        }`}
+                                      >
+                                        {getNotificationTypeBadge(n.type).label}
+                                      </span>
+                                      <span className="text-slate-500 text-[10px]">
+                                        {new Date(n.createdAt).toLocaleDateString("es-ES", {
+                                          day: "numeric",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 

@@ -1,7 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "../trpc";
-import { CompetitionStatus } from "@devbattle/db";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "../trpc";
+import { CompetitionStatus, MetricType } from "@devbattle/db";
+import { updateCompetitionStatuses } from "../services/cron.service";
 
 const statusEnum = z.enum(["active", "vote", "completed"]);
 const difficulty = z.enum(["EASY", "MEDIUM", "HARD"]);
@@ -11,6 +12,25 @@ const listInputSchema = z.object({
   format: z.string().optional(),
   page: z.number().int().positive().default(1),
   limit: z.number().int().positive().max(50).default(6),
+});
+
+const metricInputSchema = z.object({
+  name: z.string().min(1),
+  type: z.nativeEnum(MetricType),
+  maxValue: z.number().positive(),
+  weight: z.number().min(0),
+});
+
+const editCompetitionSchema = z.object({
+  id: z.string().cuid(),
+  title: z.string().min(1).max(120).optional(),
+  description: z.string().min(1).optional(),
+  rules: z.string().optional(),
+  fileFormat: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  submissionDeadline: z.date().optional(),
+  votingDeadline: z.date().optional(),
+  metrics: z.array(metricInputSchema).optional(),
 });
 
 const statusToPrismaMap: Record<"active" | "vote" | "completed", CompetitionStatus> = {
@@ -175,4 +195,150 @@ export const challengeRouter = createTRPCRouter({
         },
       });
     }),
+
+  triggerCronJob: publicProcedure.mutation(async ({ ctx }) => {
+    await updateCompetitionStatuses(ctx.prisma);
+    return { success: true, message: "Cron job ejecutado manualmente" };
+  }),
+
+  edit: protectedProcedure
+    .input(editCompetitionSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session?.user?.id;
+      if (!userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Debes iniciar sesión" });
+      }
+
+      const competition = await ctx.prisma.competition.findUnique({
+        where: { id: input.id },
+        include: {
+          participants: {
+            where: { userId: userId, role: "HOST" },
+          },
+        },
+      });
+
+      if (!competition) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Competencia no encontrada" });
+      }
+      if (competition.participants.length === 0) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Acceso denegado: No eres el host de esta competencia" });
+      }
+
+      const { status } = competition;
+
+      if (status === CompetitionStatus.COMPLETED) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No se puede editar una competencia finalizada" });
+      }
+
+      const isTitleChanged = input.title !== undefined && input.title !== competition.title;
+      const isRulesChanged = input.rules !== undefined && input.rules !== competition.rules;
+      const isFormatChanged = input.fileFormat !== undefined && input.fileFormat !== competition.fileFormat;
+      const isTagsChanged = input.tags !== undefined && JSON.stringify(input.tags) !== JSON.stringify(competition.tags);
+      const isSubDateChanged = input.submissionDeadline !== undefined && input.submissionDeadline.getTime() !== competition.submissionDeadline.getTime();
+      const isMetricsChanged = input.metrics !== undefined;
+
+      if (status === CompetitionStatus.ACTIVE) {
+        if (isTitleChanged || isRulesChanged || isFormatChanged || isTagsChanged) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "En estado ACTIVE solo puedes modificar descripción, métricas y fechas.",
+          });
+        }
+      }
+
+      if (status === CompetitionStatus.VOTING) {
+        if (
+          isTitleChanged ||
+          isRulesChanged ||
+          isFormatChanged ||
+          isTagsChanged ||
+          isSubDateChanged ||
+          isMetricsChanged
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "En estado VOTING solo puedes modificar la descripción y la fecha de votación.",
+          });
+        }
+      }
+
+      const newSubDate = input.submissionDeadline ?? competition.submissionDeadline;
+      const newVoteDate = input.votingDeadline ?? competition.votingDeadline;
+
+      if (newVoteDate <= newSubDate) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "La fecha de votación debe ser estrictamente posterior a la de recepción.",
+        });
+      }
+
+      if (input.metrics && input.metrics.length === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Debe haber al menos una métrica definida." });
+      }
+
+      const isVoteDateChanged =
+        input.votingDeadline !== undefined &&
+        input.votingDeadline.getTime() !== competition.votingDeadline.getTime();
+
+      const updatedCompetition = await ctx.prisma.competition.update({
+        where: { id: input.id },
+        data: {
+          title: input.title,
+          description: input.description,
+          rules: input.rules,
+          fileFormat: input.fileFormat,
+          tags: input.tags,
+          submissionDeadline: input.submissionDeadline,
+          votingDeadline: input.votingDeadline,
+          ...(input.metrics && {
+            metrics: {
+              deleteMany: {},
+              create: input.metrics.map((m) => ({
+                name: m.name,
+                type: m.type,
+                maxValue: m.maxValue,
+                weight: m.weight,
+              })),
+            },
+          }),
+        },
+        include: {
+          metrics: true,
+        },
+      });
+
+      if (
+        (status === CompetitionStatus.ACTIVE || status === CompetitionStatus.VOTING) &&
+        (isSubDateChanged || isVoteDateChanged || isMetricsChanged)
+      ) {
+        const otherParticipants = await ctx.prisma.competitionParticipant.findMany({
+          where: {
+            competitionId: updatedCompetition.id,
+            userId: { not: userId },
+          },
+          select: { userId: true },
+        });
+
+        if (otherParticipants.length > 0) {
+          let changeDetail = "las fechas";
+          if (isMetricsChanged && (isSubDateChanged || isVoteDateChanged)) {
+            changeDetail = "las fechas y criterios de evaluación";
+          } else if (isMetricsChanged) {
+            changeDetail = "las métricas de evaluación";
+          }
+
+          await ctx.prisma.notification.createMany({
+            data: otherParticipants.map((p) => ({
+              userId: p.userId,
+              content: `Se han actualizado ${changeDetail} de la competencia "${updatedCompetition.title}".`,
+              type: "STATE_CHANGE",
+            })),
+          });
+        }
+      }
+
+      return updatedCompetition;
+    }),
+
 });
