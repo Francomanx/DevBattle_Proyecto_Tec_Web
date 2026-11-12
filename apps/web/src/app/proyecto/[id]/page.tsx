@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { useTRPC } from "@/trpc/client";
+import { VoteProjectForm } from "@/components/vote-project-form";
 
 // 1. Tu componente original ahora es una función interna (sin export default)
 function ProjectDetailContent() {
@@ -13,6 +14,9 @@ function ProjectDetailContent() {
   const projectId = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
   const trpc = useTRPC();
   const { user } = useAuth();
+
+  console.log("--> ID recibido en la página del proyecto:", projectId);
+  console.log("--> Parámetros completos:", params);
 
   const [isDisqualifying, setIsDisqualifying] = useState(false);
   const [disqualifyReason, setDisqualifyReason] = useState("");
@@ -116,6 +120,17 @@ function ProjectDetailContent() {
               </div>
             </div>
           </div>
+          
+          <VoteProjectForm
+            projectId={project.id}
+            competitionStatus={project.competition?.status || ""}
+            isDisqualified={project.isDisqualified}
+            projectAuthorId={project.authorId}
+            metrics={project.competition?.metrics || []}
+            existingVotes={project.votes?.filter((v: any) => v.voterId === user?.id) || []}
+            onVoteSuccess={() => refetchProject()}
+          />
+
         </div>
 
         <div className="flex flex-col gap-6 lg:col-span-1">
