@@ -47,9 +47,6 @@ export function ProfileEditModal({
 }: ProfileEditModalProps) {
   const trpc = useTRPC();
   const updateProfile = useMutation(trpc.profile.updateProfile.mutationOptions());
-  const requestCode = useMutation(
-    trpc.profile.requestPasswordChangeCode.mutationOptions()
-  );
   const changePassword = useMutation(
     trpc.profile.changePassword.mutationOptions()
   );
@@ -58,10 +55,9 @@ export function ProfileEditModal({
   const [username, setUsername] = useState(initialUsername);
   const [description, setDescription] = useState(initialDescription ?? "");
   const [githubUrl, setGithubUrl] = useState(initialGithubUrl ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [code, setCode] = useState("");
-  const [codeRequested, setCodeRequested] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [securityError, setSecurityError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
@@ -105,6 +101,10 @@ export function ProfileEditModal({
   }
 
   function validatePasswordFields() {
+    if (!currentPassword) {
+      setSecurityError("Ingresa tu contraseña actual.");
+      return false;
+    }
     if (newPassword.length < 8 || newPassword.length > 72) {
       setSecurityError("La contraseña debe tener entre 8 y 72 caracteres.");
       return false;
@@ -116,41 +116,22 @@ export function ProfileEditModal({
     return true;
   }
 
-  async function handleRequestCode() {
-    setSecurityError("");
-    setSecuritySuccess("");
-    if (!validatePasswordFields()) return;
-
-    try {
-      await requestCode.mutateAsync({ newPassword, confirmPassword });
-      setCodeRequested(true);
-      setSecuritySuccess("Enviamos un código a tu correo registrado. Revisa también spam.");
-    } catch (error) {
-      setSecurityError(getErrorMessage(error));
-    }
-  }
-
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSecurityError("");
     setSecuritySuccess("");
 
     if (!validatePasswordFields()) return;
-    if (!codeRequested) {
-      setSecurityError("Primero solicita el código enviado a tu correo.");
-      return;
-    }
-    if (!/^\d{6}$/.test(code)) {
-      setSecurityError("Ingresa el código de 6 dígitos recibido por correo.");
-      return;
-    }
 
     try {
-      await changePassword.mutateAsync({ code, newPassword, confirmPassword });
+      await changePassword.mutateAsync({
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setCode("");
-      setCodeRequested(false);
       setSecuritySuccess("Contraseña actualizada correctamente.");
     } catch (error) {
       setSecurityError(getErrorMessage(error));
@@ -291,8 +272,21 @@ export function ProfileEditModal({
         ) : (
           <form className="mt-5 space-y-4" onSubmit={handlePasswordSubmit}>
             <p className="text-sm text-slate-400">
-              Te enviaremos un código de un solo uso a tu correo registrado. El código expira en 10 minutos.
+              Confirma tu contraseña actual y elige una nueva contraseña.
             </p>
+
+            <label className="block space-y-1.5 text-sm text-slate-300">
+              <span>Contraseña actual</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                required
+                maxLength={72}
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                className="w-full rounded-lg border border-[#34445F] bg-[#0A101D] px-3 py-2.5 text-white outline-none focus:border-orange-500"
+              />
+            </label>
 
             <label className="block space-y-1.5 text-sm text-slate-300">
               <span>Nueva contraseña</span>
@@ -322,38 +316,6 @@ export function ProfileEditModal({
               />
             </label>
 
-            <button
-              type="button"
-              onClick={handleRequestCode}
-              disabled={requestCode.isPending}
-              className="rounded-lg border border-orange-500/50 px-4 py-2 text-sm font-semibold text-orange-300 hover:bg-orange-500/10 disabled:opacity-60"
-            >
-              {requestCode.isPending
-                ? "Enviando código…"
-                : codeRequested
-                  ? "Solicitar otro código"
-                  : "Enviar código a mi correo"}
-            </button>
-
-            {codeRequested && (
-              <label className="block space-y-1.5 text-sm text-slate-300">
-                <span>Código de verificación</span>
-                <input
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  required
-                  value={code}
-                  onChange={(event) =>
-                    setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  placeholder="123456"
-                  className="w-full rounded-lg border border-[#34445F] bg-[#0A101D] px-3 py-2.5 text-white outline-none focus:border-orange-500"
-                />
-              </label>
-            )}
-
             {securityError && (
               <p role="alert" className="text-sm text-red-300">
                 {securityError}
@@ -375,7 +337,7 @@ export function ProfileEditModal({
               </button>
               <button
                 type="submit"
-                disabled={changePassword.isPending || !codeRequested}
+                disabled={changePassword.isPending}
                 className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-60"
               >
                 {changePassword.isPending ? "Actualizando…" : "Cambiar contraseña"}
