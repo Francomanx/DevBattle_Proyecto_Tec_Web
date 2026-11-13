@@ -67,11 +67,13 @@ export const submitProjectSchema = z.object({
 });
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION!,
+  region: process.env.R2_REGION!,
+  endpoint: process.env.R2_ENDPOINT,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
+  forcePathStyle: true,
 });
 
 
@@ -264,7 +266,7 @@ export const projectRouter = createTRPCRouter({
         s3FileKey = `competitions/${input.competitionId}/projects/${userId}_${Date.now()}_${safeFileName}`;
 
         const command = new PutObjectCommand({
-          Bucket: process.env.AWS_S3_BUCKET_NAME!,
+          Bucket: process.env.R2_BUCKET_NAME!,
           Key: s3FileKey,
         });
 
