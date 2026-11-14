@@ -1257,4 +1257,84 @@ export const competitionRouter = createTRPCRouter({
         destitutedUsername: targetUser.username,
       };
     }),
+
+  leaveModeration: publicProcedure
+    .input(
+      z.object({
+        competitionId: z.string().min(1),
+        userId: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const currentUserId = ctx.session?.user?.id ?? input.userId;
+      if (!currentUserId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Debes iniciar sesión para abandonar tu puesto de moderador.",
+        });
+      }
+
+      const competition = await ctx.prisma.competition.findUnique({
+        where: { id: input.competitionId },
+        select: { id: true, title: true },
+      });
+
+      if (!competition) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Competencia no encontrada.",
+        });
+      }
+
+      const user = await ctx.prisma.user.findFirst({
+        where: { OR: [{ id: currentUserId }, { username: currentUserId }] },
+        select: { id: true, username: true },
+      });
+
+      const participant = user
+        ? await ctx.prisma.competitionParticipant.findUnique({
+            where: {
+              userId_competitionId: {
+                userId: user.id,
+                competitionId: competition.id,
+              },
+            },
+          })
+        : null;
+
+      if (!user || !participant || participant.role !== "MOD") {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Ya no eres moderador de esta competencia (es posible que el host haya revocado tu rol).",
+        });
+      }
+
+      // Se borra condicionando por rol para resistir condiciones de carrera
+      // (por ejemplo, que el host destituya al moderador al mismo tiempo).
+      const deleted = await ctx.prisma.competitionParticipant.deleteMany({
+        where: {
+          userId: user.id,
+          competitionId: competition.id,
+          role: "MOD",
+        },
+      });
+
+      if (deleted.count === 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "Ya no eres moderador de esta competencia (es posible que el host haya revocado tu rol).",
+        });
+      }
+
+      await ctx.prisma.modInvitation.deleteMany({
+        where: { competitionId: competition.id, invitedUserId: user.id },
+      });
+
+      return {
+        success: true,
+        message: `Has abandonado tu puesto de moderador en la competencia "${competition.title}".`,
+      };
+    }),
 });

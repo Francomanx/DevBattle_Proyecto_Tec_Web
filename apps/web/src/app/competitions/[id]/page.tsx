@@ -36,7 +36,12 @@ function CompetitionDetailContent() {
   const [removeModError, setRemoveModError] = useState<string | null>(null);
   const [removeModSuccess, setRemoveModSuccess] = useState<string | null>(null);
 
+  const [showLeaveModConfirm, setShowLeaveModConfirm] = useState(false);
+  const [leaveModError, setLeaveModError] = useState<string | null>(null);
+  const [leaveModSuccess, setLeaveModSuccess] = useState<string | null>(null);
+
   const activateMutation = useMutation(trpc.competition.activate.mutationOptions());
+  const leaveModMutation = useMutation(trpc.competition.leaveModeration.mutationOptions());
   const inviteModMutation = useMutation(trpc.competition.inviteMod.mutationOptions());
   const cancelModMutation = useMutation(trpc.competition.cancelModInvitation.mutationOptions());
   const removeModMutation = useMutation(trpc.competition.removeModerator.mutationOptions());
@@ -61,6 +66,18 @@ function CompetitionDetailContent() {
     (hostParticipant.userId === currentUser.id ||
       hostParticipant.user?.username === currentUser.username ||
       hostParticipant.user?.username === currentUser.name)
+  );
+
+  const isMod = Boolean(
+    currentUser &&
+    !isHost &&
+    competition?.participants.some(
+      (p) =>
+        p.role === "MOD" &&
+        (p.userId === currentUser.id ||
+          p.user?.username === currentUser.username ||
+          p.user?.username === currentUser.name)
+    )
   );
 
   const { data: modInvitations, refetch: refetchInvitations } = useQuery({
@@ -324,6 +341,29 @@ function CompetitionDetailContent() {
     }
   };
 
+  const handleConfirmLeaveModeration = async () => {
+    setLeaveModError(null);
+    setLeaveModSuccess(null);
+    try {
+      const res = await leaveModMutation.mutateAsync({
+        competitionId,
+        userId: currentUser?.id,
+      });
+      setLeaveModSuccess(res.message);
+      setShowLeaveModConfirm(false);
+      await refetch();
+    } catch (err: unknown) {
+      console.error("Error al abandonar la moderación:", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error inesperado al abandonar tu puesto de moderador.";
+      setLeaveModError(message);
+      setShowLeaveModConfirm(false);
+      await refetch();
+    }
+  };
+
   // Metrics and Leaderboard calculations
   const totalWeight = competition.metrics.reduce(
     (acc, m) => acc + (m.weight ?? 0),
@@ -404,6 +444,20 @@ return (
 
                   <div className="flex items-center gap-3">
                     
+                    {isMod && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLeaveModError(null);
+                          setLeaveModSuccess(null);
+                          setShowLeaveModConfirm(true);
+                        }}
+                        className="flex-shrink-0 rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-2.5 text-xs font-bold text-red-300 shadow-md transition hover:bg-red-500/20 active:scale-[0.98]"
+                      >
+                        Abandonar puesto de moderador
+                      </button>
+                    )}
+
                     {isHost && competition.status !== "COMPLETED" && (
                       <button
                         type="button"
@@ -433,6 +487,47 @@ return (
                     )}
                   </div>
                 </div>
+
+                {showLeaveModConfirm && isMod && (
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 space-y-3" role="alertdialog" aria-label="Confirmar abandono de moderación">
+                    <p className="text-sm font-semibold text-red-200">
+                      ¿Estás seguro de que deseas abandonar tu puesto como moderador?
+                    </p>
+                    <p className="text-xs text-red-300">
+                      Perderás los permisos de moderación en esta competencia. Para volver a ser moderador, el host deberá enviarte una nueva solicitud.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowLeaveModConfirm(false)}
+                        disabled={leaveModMutation.isPending}
+                        className="rounded-lg border border-[#4A5568] bg-[#2D3748] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#4A5568] disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmLeaveModeration}
+                        disabled={leaveModMutation.isPending}
+                        className="rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {leaveModMutation.isPending ? "Abandonando…" : "Sí, abandonar"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {leaveModSuccess && (
+                  <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-xs text-emerald-300 flex items-center justify-between gap-3">
+                    <span>{leaveModSuccess}</span>
+                    <button type="button" onClick={() => setLeaveModSuccess(null)} className="font-bold">✕</button>
+                  </div>
+                )}
+                {leaveModError && (
+                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-xs text-red-300">
+                    <p className="font-semibold text-red-200">No se pudo abandonar el puesto</p>
+                    <p>{leaveModError}</p>
+                  </div>
+                )}
 
                 {/* Feedback Messages */}
                 {activationError && (
