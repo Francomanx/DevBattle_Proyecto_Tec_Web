@@ -87,6 +87,9 @@ export const projectRouter = createTRPCRouter({
           author: {
             select: { id: true, username: true },
           },
+          disqualifiedBy: {
+            select: { id: true, username: true },
+          },
           competition: {
             select: {
               id: true,
@@ -112,19 +115,19 @@ export const projectRouter = createTRPCRouter({
       return project;
     }),
 
-  disqualify: publicProcedure
+  disqualify: protectedProcedure
     .input(
       z.object({
         projectId: z.string().min(1),
         reason: z
           .string()
           .trim()
-          .min(5, "Debes proporcionar un motivo para la descalificación (mínimo 5 caracteres)."),
-        userId: z.string().optional(),
+          .min(5, "Debes proporcionar un motivo para la descalificación (mínimo 5 caracteres).")
+          .max(1000, "El motivo no puede superar los 1000 caracteres."),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const currentUserId = ctx.session?.user?.id ?? input.userId;
+      const currentUserId = ctx.session?.user?.id;
       if (!currentUserId) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
@@ -132,72 +135,101 @@ export const projectRouter = createTRPCRouter({
         });
       }
 
-      const project = await ctx.prisma.project.findUnique({
-        where: { id: input.projectId },
-        include: {
-          competition: {
-            include: {
-              participants: true,
+      return ctx.prisma.$transaction(async (transaction) => {
+        const project = await transaction.project.findUnique({
+          where: { id: input.projectId },
+          include: {
+            competition: {
+              include: {
+                participants: true,
+              },
             },
           },
-          author: {
-            select: { id: true, username: true },
+        });
+
+        if (!project) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Proyecto no encontrado.",
+          });
+        }
+
+        const callerParticipant = project.competition.participants.find(
+          (participant) => participant.userId === currentUserId
+        );
+        const isHost = callerParticipant?.role === "HOST";
+        const isMod = callerParticipant?.role === "MOD";
+
+        if (!isHost && !isMod) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "Solo el anfitrión o un moderador de la competencia pueden descalificar proyectos.",
+          });
+        }
+
+        if (project.competition.status === "COMPLETED") {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "No se puede descalificar un proyecto de una competencia finalizada.",
+          });
+        }
+
+        if (project.isDisqualified) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Este proyecto ya se encuentra descalificado.",
+          });
+        }
+
+        const updateResult = await transaction.project.updateMany({
+          where: {
+            id: project.id,
+            isDisqualified: false,
           },
-        },
-      });
-
-      if (!project) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Proyecto no encontrado.",
-        });
-      }
-
-      const callerParticipant = project.competition.participants.find(
-        (p) => p.userId === currentUserId
-      );
-
-      const isHost = callerParticipant?.role === "HOST";
-      const isMod = callerParticipant?.role === "MOD";
-
-      if (!isHost && !isMod) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Solo el anfitrión o un moderador de la competencia pueden descalificar proyectos.",
-        });
-      }
-
-      if (project.isDisqualified) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Este proyecto ya se encuentra descalificado.",
-        });
-      }
-
-      const roleLabel = isHost ? "el anfitrión" : "un moderador";
-
-      const [updatedProject] = await ctx.prisma.$transaction([
-        ctx.prisma.project.update({
-          where: { id: project.id },
           data: {
             isDisqualified: true,
             disqualificationReason: input.reason,
+            disqualifiedById: currentUserId,
           },
-        }),
-        ctx.prisma.notification.create({
-          data: {
-            userId: project.authorId,
-            content: `Tu proyecto "${project.title}" en la competencia "${project.competition.title}" ha sido descalificado por ${roleLabel}. Motivo: "${input.reason}".`,
-            type: "DISQUALIFICATION",
-          },
-        }),
-      ]);
+        });
 
-      return {
-        success: true,
-        message: `El proyecto "${project.title}" ha sido descalificado exitosamente.`,
-        project: updatedProject,
-      };
+        if (updateResult.count !== 1) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Este proyecto ya fue descalificado por otro moderador.",
+          });
+        }
+
+        const updatedProject = await transaction.project.findUniqueOrThrow({
+          where: { id: project.id },
+        });
+        const hostParticipant = project.competition.participants.find(
+          (participant) => participant.role === "HOST"
+        );
+        const roleLabel = isHost ? "el anfitrión" : "un moderador";
+        const notificationUserIds = [
+          ...new Set(
+            [project.authorId, hostParticipant?.userId].filter(
+              (userId): userId is string => Boolean(userId)
+            )
+          ),
+        ];
+
+        await transaction.notification.createMany({
+          data: notificationUserIds.map((userId) => ({
+            userId,
+            content: `El proyecto "${project.title}" en la competencia "${project.competition.title}" ha sido descalificado por ${roleLabel}. Motivo: "${input.reason}".`,
+            type: "DISQUALIFICATION",
+          })),
+        });
+
+        return {
+          success: true,
+          message: `El proyecto "${project.title}" ha sido descalificado exitosamente.`,
+          project: updatedProject,
+        };
+      });
     }),
 
   submitToCompetition: protectedProcedure

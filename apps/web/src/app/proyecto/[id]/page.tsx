@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -19,6 +19,7 @@ function ProjectDetailContent() {
   console.log("--> Parámetros completos:", params);
 
   const [isDisqualifying, setIsDisqualifying] = useState(false);
+  const [isConfirmingDisqualification, setIsConfirmingDisqualification] = useState(false);
   const [disqualifyReason, setDisqualifyReason] = useState("");
   const [disqualifyError, setDisqualifyError] = useState<string | null>(null);
   const [disqualifySuccess, setDisqualifySuccess] = useState<string | null>(null);
@@ -63,10 +64,58 @@ function ProjectDetailContent() {
   );
   const isHost = callerParticipant?.role === "HOST";
   const isMod = callerParticipant?.role === "MOD";
-  const canModerate = Boolean(user && (isHost || isMod));
+  const canModerate = Boolean(
+    user &&
+      (isHost || isMod) &&
+      project.competition?.status !== "COMPLETED"
+  );
+  const projectIdForDisqualification = project.id;
+
+  async function handleDisqualify(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setDisqualifyError(null);
+    const reason = disqualifyReason.trim();
+    if (reason.length < 5) {
+      setDisqualifyError("Debes ingresar un motivo de al menos 5 caracteres.");
+      return;
+    }
+
+    setIsConfirmingDisqualification(true);
+  }
+
+  async function confirmDisqualification() {
+    setDisqualifyError(null);
+    const reason = disqualifyReason.trim();
+    try {
+      await disqualifyMutation.mutateAsync({
+        projectId: projectIdForDisqualification,
+        reason,
+      });
+      setIsDisqualifying(false);
+      setIsConfirmingDisqualification(false);
+      setDisqualifyReason("");
+      setDisqualifySuccess("Proyecto descalificado exitosamente.");
+      await refetchProject();
+    } catch (error: unknown) {
+      setIsConfirmingDisqualification(false);
+      setDisqualifyError(
+        error instanceof Error
+          ? error.message
+          : "Ha ocurrido un error inesperado."
+      );
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-8 md:py-12">
+      {disqualifySuccess && (
+        <p
+          role="status"
+          className="mb-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300"
+        >
+          {disqualifySuccess}
+        </p>
+      )}
       
       <nav className="mb-8">
         <Link 
@@ -94,6 +143,11 @@ function ProjectDetailContent() {
                 <p className="mt-1 text-sm text-red-200/90 leading-relaxed">
                   <span className="font-semibold text-red-300">Motivo:</span> {project.disqualificationReason}
                 </p>
+                {project.disqualifiedBy?.username && (
+                  <p className="mt-2 text-xs text-red-200/70">
+                    Descalificado por @{project.disqualifiedBy.username}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -127,7 +181,7 @@ function ProjectDetailContent() {
             isDisqualified={project.isDisqualified}
             projectAuthorId={project.authorId}
             metrics={project.competition?.metrics || []}
-            existingVotes={project.votes?.filter((v: any) => v.voterId === user?.id) || []}
+            existingVotes={project.votes?.filter((vote) => vote.voterId === user?.id) || []}
             onVoteSuccess={() => refetchProject()}
           />
 
@@ -220,79 +274,135 @@ function ProjectDetailContent() {
                   type="button"
                   onClick={() => {
                     setIsDisqualifying(true);
+                    setIsConfirmingDisqualification(false);
                     setDisqualifyError(null);
+                    setDisqualifySuccess(null);
                   }}
                   className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/20 active:scale-[0.98]"
                 >
                   Descalificar Proyecto
                 </button>
               ) : (
-                <div className="space-y-3">
-                  <p className="text-xs text-slate-300">
-                    Indica el motivo formal de descalificación. El autor recibirá una notificación informativa.
-                  </p>
-                  <textarea
-                    rows={3}
-                    value={disqualifyReason}
-                    onChange={(e) => {
-                      setDisqualifyReason(e.target.value);
-                      if (disqualifyError) setDisqualifyError(null);
-                    }}
-                    placeholder="Describe el motivo de la descalificación (mínimo 5 caracteres)..."
-                    className="w-full rounded-lg border border-[#263652] bg-[#0A101D] p-2.5 text-xs text-white placeholder-slate-500 focus:border-red-500 focus:outline-none"
-                  />
-                  {disqualifyError && (
-                    <p className="text-[11px] text-red-400 font-medium">
-                      {disqualifyError}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={disqualifyMutation.isPending}
-                      onClick={async () => {
-                        if (disqualifyReason.trim().length < 5) {
-                          setDisqualifyError("Debes ingresar un motivo de al menos 5 caracteres.");
-                          return;
-                        }
-                        try {
-                          await disqualifyMutation.mutateAsync({
-                            projectId: project.id,
-                            reason: disqualifyReason.trim(),
-                            userId: user?.id,
-                          });
-                          setIsDisqualifying(false);
-                          setDisqualifyReason("");
-                          setDisqualifySuccess("Proyecto descalificado exitosamente.");
-                          await refetchProject();
-                        } catch (err: unknown) {
-                          const message = err instanceof Error ? err.message : "Error al descalificar el proyecto.";
-                          setDisqualifyError(message);
-                        }
-                      }}
-                      className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-500 disabled:opacity-50"
-                    >
-                      {disqualifyMutation.isPending ? "Procesando..." : "Confirmar Descalificación"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={disqualifyMutation.isPending}
-                      onClick={() => {
-                        setIsDisqualifying(false);
-                        setDisqualifyReason("");
-                        setDisqualifyError(null);
-                      }}
-                      className="rounded-lg border border-[#263652] bg-[#0B111E] px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
+                <div
+                  className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+                  onMouseDown={(event) => {
+                    if (
+                      event.target === event.currentTarget &&
+                      !disqualifyMutation.isPending
+                    ) {
+                      setIsDisqualifying(false);
+                      setIsConfirmingDisqualification(false);
+                      setDisqualifyReason("");
+                      setDisqualifyError(null);
+                    }
+                  }}
+                >
+                  <section
+                    aria-labelledby="disqualify-project-title"
+                    aria-modal="true"
+                    className="w-full max-w-lg space-y-4 rounded-2xl border border-red-500/30 bg-[#111A2E] p-6 shadow-2xl"
+                    role="dialog"
+                  >
+                    <div>
+                      <h4
+                        id="disqualify-project-title"
+                        className="text-lg font-bold text-white"
+                      >
+                        Descalificar proyecto
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-300">
+                        Escribe el motivo de la descalificación. El autor recibirá una notificación.
+                      </p>
+                    </div>
+                    {isConfirmingDisqualification ? (
+                      <div className="space-y-4">
+                        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+                          <p className="text-sm font-semibold text-red-200">
+                            ¿Confirmas que quieres descalificar este proyecto?
+                          </p>
+                          <p className="mt-2 text-sm text-slate-300">
+                            Esta acción no se puede deshacer. El motivo que se registrará es:
+                          </p>
+                          <p className="mt-2 whitespace-pre-wrap rounded-md bg-black/20 p-3 text-sm text-white">
+                            {disqualifyReason.trim()}
+                          </p>
+                        </div>
+                        {disqualifyError && (
+                          <p role="alert" className="text-sm font-medium text-red-300">
+                            {disqualifyError}
+                          </p>
+                        )}
+                        <div className="flex justify-end gap-3">
+                          <button
+                            type="button"
+                            disabled={disqualifyMutation.isPending}
+                            onClick={() => setIsConfirmingDisqualification(false)}
+                            className="rounded-lg border border-[#34445F] px-4 py-2 text-sm text-slate-300 hover:bg-[#1A2640] disabled:opacity-50"
+                          >
+                            Volver
+                          </button>
+                          <button
+                            type="button"
+                            disabled={disqualifyMutation.isPending}
+                            onClick={confirmDisqualification}
+                            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-500 disabled:opacity-50"
+                          >
+                            {disqualifyMutation.isPending
+                              ? "Procesando..."
+                              : "Sí, descalificar"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <form className="space-y-4" onSubmit={handleDisqualify}>
+                        <label className="block space-y-2 text-sm text-slate-300">
+                          <span>Motivo de descalificación</span>
+                          <textarea
+                            autoFocus
+                            required
+                            minLength={5}
+                            maxLength={1000}
+                            rows={5}
+                            value={disqualifyReason}
+                            onChange={(event) => {
+                              setDisqualifyReason(event.target.value);
+                              if (disqualifyError) setDisqualifyError(null);
+                            }}
+                            placeholder="Describe por qué el proyecto incumple las reglas (mínimo 5 caracteres)."
+                            className="w-full rounded-lg border border-[#34445F] bg-[#0A101D] p-3 text-sm text-white placeholder-slate-500 outline-none focus:border-red-500"
+                          />
+                        </label>
+                        {disqualifyError && (
+                          <p role="alert" className="text-sm font-medium text-red-300">
+                            {disqualifyError}
+                          </p>
+                        )}
+                        <div className="flex justify-end gap-3">
+                          <button
+                            type="button"
+                            disabled={disqualifyMutation.isPending}
+                            onClick={() => {
+                              setIsDisqualifying(false);
+                              setDisqualifyReason("");
+                              setDisqualifyError(null);
+                              setIsConfirmingDisqualification(false);
+                            }}
+                            className="rounded-lg border border-[#34445F] px-4 py-2 text-sm text-slate-300 hover:bg-[#1A2640] disabled:opacity-50"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={disqualifyMutation.isPending}
+                            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-500 disabled:opacity-50"
+                          >
+                            Continuar
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </section>
                 </div>
-              )}
-              {disqualifySuccess && (
-                <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 p-2.5 rounded-lg">
-                  {disqualifySuccess}
-                </p>
               )}
             </div>
           )}

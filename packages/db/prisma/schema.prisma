@@ -79,6 +79,7 @@ model User {
   notifications          Notification[]
   sentModInvitations     ModInvitation[]          @relation("SentModInvitations")
   receivedModInvitations ModInvitation[]          @relation("ReceivedModInvitations")
+  disqualifiedProjects   Project[]                @relation("ProjectDisqualifier")
 
   @@map("users")
 }
@@ -144,14 +145,17 @@ model Project {
   submissionDate        DateTime  @default(now())
   isDisqualified        Boolean   @default(false)
   disqualificationReason String?
+  disqualifiedById      String?
 
   competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  disqualifiedBy User?    @relation("ProjectDisqualifier", fields: [disqualifiedById], references: [id], onDelete: SetNull)
   votes       Vote[]
   comments    Comment[]
 
   @@index([competitionId])
   @@index([authorId])
+  @@index([disqualifiedById])
   @@map("projects")
 }
 

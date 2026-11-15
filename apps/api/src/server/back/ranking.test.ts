@@ -80,6 +80,20 @@ describe("computeRanking", () => {
     );
     expect(ranking.map((r) => r.projectId)).toEqual(["ok"]);
   });
+
+  it("no incluye proyectos descalificados en las posiciones del ranking", () => {
+    const ranking = computeRanking(
+      [
+        project("dq", "2026-01-01", votes([5], [5], [5]), true),
+        project("ok", "2026-01-02", votes([3], [3], [3])),
+      ],
+      metrics,
+    );
+
+    expect(ranking.map((entry) => [entry.projectId, entry.position])).toEqual([
+      ["ok", 1],
+    ]);
+  });
 });
 
 describe("getCompetitionRanking", () => {
@@ -104,6 +118,21 @@ describe("getCompetitionRanking", () => {
     expect(result.hasVotes).toBe(true);
     expect(result.message).toBeNull();
     expect(result.ranking.map((r) => r.projectId)).toEqual(["b", "a"]);
+  });
+
+  it("el ranking devuelto por la competencia omite proyectos descalificados", async () => {
+    const result = await getCompetitionRanking(
+      fakeDb(
+        completed([
+          project("dq", "2026-01-01", votes([5], [5], [5]), true),
+          project("ok", "2026-01-02", votes([3], [3], [3])),
+        ]),
+      ),
+      "c1",
+    );
+
+    expect(result.ranking.map((entry) => entry.projectId)).toEqual(["ok"]);
+    expect(result.hasVotes).toBe(true);
   });
 
   it("sin votos todos tienen 0 puntos y se avisa", async () => {
