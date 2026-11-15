@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
 import { useAuth } from "@/context/auth-context";
@@ -19,6 +19,17 @@ interface VoteProjectFormProps {
   metrics: Metric[];
   existingVotes?: { metricId: string; score: number }[];
   onVoteSuccess?: () => void;
+}
+
+function VoteProjectWrapper({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-8 rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-xl space-y-4">
+      <h3 className="text-lg font-bold text-white border-b border-[#1E2D4A] pb-3">
+        Votación del Proyecto
+      </h3>
+      {children}
+    </div>
+  );
 }
 
 export function VoteProjectForm({
@@ -47,36 +58,27 @@ export function VoteProjectForm({
     return null;
   }
 
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <div className="mt-8 rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-xl space-y-4">
-      <h3 className="text-lg font-bold text-white border-b border-[#1E2D4A] pb-3">
-        Votación del Proyecto
-      </h3>
-      {children}
-    </div>
-  );
-
   if (isDisqualified) {
     return (
-      <Wrapper>
+      <VoteProjectWrapper>
         <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-center">
           <p className="text-sm font-semibold text-red-300">
             No se puede votar en un proyecto descalificado.
           </p>
         </div>
-      </Wrapper>
+      </VoteProjectWrapper>
     );
   }
 
   if (user.id === projectAuthorId) {
     return (
-      <Wrapper>
+      <VoteProjectWrapper>
         <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-center">
           <p className="text-sm font-semibold text-amber-300">
             No puedes votar por un proyecto propio.
           </p>
         </div>
-      </Wrapper>
+      </VoteProjectWrapper>
     );
   }
 
@@ -84,7 +86,7 @@ export function VoteProjectForm({
 
   if (hasVoted) {
     return (
-      <Wrapper>
+      <VoteProjectWrapper>
         <div className="space-y-4">
           <div className="grid gap-3">
             {metrics.map((metric) => {
@@ -120,7 +122,7 @@ export function VoteProjectForm({
             </p>
           </div>
         </div>
-      </Wrapper>
+      </VoteProjectWrapper>
     );
   }
 
@@ -151,13 +153,17 @@ export function VoteProjectForm({
 
       setSuccessMessage(res.message);
       if (onVoteSuccess) onVoteSuccess();
-    } catch (error: any) {
-      setErrorMessage(error.message || "Ocurrió un error al registrar el voto.");
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error al registrar el voto."
+      );
     }
   };
 
   return (
-    <Wrapper>
+    <VoteProjectWrapper>
       <div className="space-y-4">
         <p className="text-xs text-slate-400">
           Califica este proyecto del 1 al 5 en cada métrica (1 = Insuficiente, 5 = Sobresaliente).
@@ -205,6 +211,6 @@ export function VoteProjectForm({
           {voteMutation.isPending ? "Registrando voto..." : "Confirmar Voto"}
         </button>
       </div>
-    </Wrapper>
+    </VoteProjectWrapper>
   );
 }
