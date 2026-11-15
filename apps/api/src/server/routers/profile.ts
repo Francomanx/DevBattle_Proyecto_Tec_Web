@@ -1,16 +1,12 @@
 //archivo relacionado a la vista de perfil de usuario
 import { TRPCError } from "@trpc/server";
-import { hash } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 //zod valida el nombre de usuario que envia la pagina
 import { z } from "zod";
-import {
-  createPasswordChangeCode,
-  passwordChangeCodeMatches,
-  sendPasswordChangeCodeEmail,
-} from "../password-change";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "../trpc";
 //con esto podemos consultar y obtener la informacion del perfil de suuario sin iniciar sesion
 const passwordChangeFieldsSchema = z.object({
+  currentPassword: z.string().min(1).max(72),
   newPassword: z.string().min(8).max(72),
   confirmPassword: z.string().min(8).max(72),
 });
@@ -23,14 +19,7 @@ const passwordMismatchMessage = {
   message: "Las contraseñas no coinciden.",
 };
 
-const requestPasswordChangeCodeInputSchema = passwordChangeFieldsSchema.refine(
-  passwordsMatch,
-  passwordMismatchMessage
-);
 const changePasswordInputSchema = passwordChangeFieldsSchema
-  .extend({
-    code: z.string().regex(/^\d{6}$/, "El código debe tener 6 dígitos."),
-  })
   .refine(passwordsMatch, passwordMismatchMessage);
 
 export const profileRouter = createTRPCRouter({
@@ -244,75 +233,6 @@ export const profileRouter = createTRPCRouter({
       }
     }),
 
-  requestPasswordChangeCode: protectedProcedure
-    .input(requestPasswordChangeCodeInputSchema)
-    .mutation(async ({ ctx }) => {
-      const userId = ctx.session?.user?.id;
-      if (!userId) {
-        throw new TRPCError({ code: "UNAUTHORIZED" });
-      }
-      const user = await ctx.prisma.user.findUnique({
-        where: { id: userId },
-        select: { email: true },
-      });
-
-      if (!user) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Usuario no encontrado." });
-      }
-
-      if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: "El envío de correo no está configurado en el servidor.",
-        });
-      }
-
-      const now = new Date();
-      const latestCode = await ctx.prisma.passwordChangeCode.findFirst({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        select: { createdAt: true },
-      });
-
-      if (latestCode && now.getTime() - latestCode.createdAt.getTime() < 60_000) {
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: "Espera un minuto antes de solicitar otro código.",
-        });
-      }
-
-      const { code, codeHash } = createPasswordChangeCode(userId);
-      await ctx.prisma.passwordChangeCode.updateMany({
-        where: { userId, consumedAt: null },
-        data: { consumedAt: now },
-      });
-
-      const codeRecord = await ctx.prisma.passwordChangeCode.create({
-        data: {
-          userId,
-          codeHash,
-          expiresAt: new Date(now.getTime() + 10 * 60_000),
-        },
-        select: { id: true },
-      });
-
-      try {
-        await sendPasswordChangeCodeEmail(user.email, code);
-      } catch (error) {
-        await ctx.prisma.passwordChangeCode.update({
-          where: { id: codeRecord.id },
-          data: { consumedAt: new Date() },
-        });
-        console.error("Could not send password-change code email:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "No se pudo enviar el código. Inténtalo más tarde.",
-        });
-      }
-
-      return { success: true, expiresInSeconds: 600 };
-    }),
-
   changePassword: protectedProcedure
     .input(changePasswordInputSchema)
     .mutation(async ({ ctx, input }) => {
@@ -320,74 +240,30 @@ export const profileRouter = createTRPCRouter({
       if (!userId) {
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }
-      const now = new Date();
-      const codeRecord = await ctx.prisma.passwordChangeCode.findFirst({
-        where: {
-          userId,
-          consumedAt: null,
-          expiresAt: { gt: now },
-          attempts: { lt: 5 },
-        },
-        orderBy: { createdAt: "desc" },
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: userId },
+        select: { passwordHash: true },
       });
 
-      if (!codeRecord) {
+      if (!user) {
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "El código es inválido o expiró. Solicita uno nuevo.",
+          code: "NOT_FOUND",
+          message: "Usuario no encontrado.",
         });
       }
 
-      if (!passwordChangeCodeMatches(userId, input.code, codeRecord.codeHash)) {
-        const nextAttempts = codeRecord.attempts + 1;
-        await ctx.prisma.passwordChangeCode.updateMany({
-          where: {
-            id: codeRecord.id,
-            consumedAt: null,
-            attempts: { lt: 5 },
-          },
-          data: {
-            attempts: { increment: 1 },
-            ...(nextAttempts >= 5 ? { consumedAt: now } : {}),
-          },
-        });
-
+      if (!(await compare(input.currentPassword, user.passwordHash))) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message:
-            nextAttempts >= 5
-              ? "Se agotaron los intentos. Solicita un nuevo código."
-              : "El código ingresado no es válido.",
+          message: "La contraseña actual es incorrecta.",
         });
       }
 
       const passwordHash = await hash(input.newPassword, 12);
       await ctx.prisma.$transaction(async (transaction) => {
-        const consumed = await transaction.passwordChangeCode.updateMany({
-          where: {
-            id: codeRecord.id,
-            userId,
-            consumedAt: null,
-            expiresAt: { gt: new Date() },
-            attempts: { lt: 5 },
-          },
-          data: { consumedAt: new Date() },
-        });
-
-        if (consumed.count !== 1) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "El código es inválido o expiró. Solicita uno nuevo.",
-          });
-        }
-
         await transaction.user.update({
           where: { id: userId },
           data: { passwordHash },
-        });
-        await transaction.passwordChangeCode.updateMany({
-          where: { userId, id: { not: codeRecord.id }, consumedAt: null },
-          data: { consumedAt: new Date() },
         });
         await transaction.notification.create({
           data: {

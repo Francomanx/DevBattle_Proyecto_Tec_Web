@@ -79,7 +79,6 @@ model User {
   notifications          Notification[]
   sentModInvitations     ModInvitation[]          @relation("SentModInvitations")
   receivedModInvitations ModInvitation[]          @relation("ReceivedModInvitations")
-  passwordChangeCodes   PasswordChangeCode[]
 
   @@map("users")
 }
@@ -276,19 +275,4 @@ model ModInvitation {
   @@index([invitedUserId])
   @@index([competitionId])
   @@map("mod_invitations")
-}
-
-model PasswordChangeCode {
-  id         String    @id @default(cuid())
-  userId     String
-  codeHash   String
-  expiresAt  DateTime
-  attempts   Int       @default(0)
-  consumedAt DateTime?
-  createdAt  DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@map("password_change_codes")
 }

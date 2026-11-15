@@ -508,7 +508,7 @@ function UserProfileContent() {
                   data.projects.map((project) => (
                     <Link
                       key={project.id}
-                      href={`/proyectos/${project.id}`}
+                      href={`/proyecto/${project.id}`}
                       className="block rounded-xl border border-[#263652] p-4 transition hover:border-orange-500/50 hover:bg-[#0D1527]"
                     >
                       <p className="font-semibold text-white">{project.title}</p>
