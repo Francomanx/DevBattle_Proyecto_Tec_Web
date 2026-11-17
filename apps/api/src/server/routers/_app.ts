@@ -9,6 +9,7 @@ import { rankingRouter } from "../back/ranking.router";
 import { notificationRouter } from "./notification";
 import { chatRouter } from "./chat";
 import { voteRouter } from "./vote";
+import { commentRouter } from "./comment";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
@@ -21,6 +22,7 @@ export const appRouter = createTRPCRouter({
   notification: notificationRouter,
   chat: chatRouter,
   vote: voteRouter,
+  comment: commentRouter,
 });
 
 export type AppRouter = typeof appRouter;

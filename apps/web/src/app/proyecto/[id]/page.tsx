@@ -7,6 +7,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { useTRPC } from "@/trpc/client";
 import { VoteProjectForm } from "@/components/vote-project-form";
+import { ProjectComments } from "@/components/project-comments";
 
 // 1. Tu componente original ahora es una función interna (sin export default)
 function ProjectDetailContent() {
@@ -130,6 +131,8 @@ function ProjectDetailContent() {
             existingVotes={project.votes?.filter((v: any) => v.voterId === user?.id) || []}
             onVoteSuccess={() => refetchProject()}
           />
+
+          <ProjectComments projectId={project.id} />
 
         </div>
 
