@@ -21,6 +21,7 @@ export const metadata: Metadata = {
 import { AuthProvider } from "@/context/auth-context";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { ChatWidget } from "@/components/chat/chat-widget";
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <AuthProvider>
             <Navbar />
             <div className="flex-1">{children}</div>
+            <ChatWidget />
             <Footer />
           </AuthProvider>
         </TRPCReactProvider>

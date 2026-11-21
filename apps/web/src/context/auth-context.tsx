@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { resetPusherClient } from "@/lib/pusher";
 
 export interface UserSession {
   id: string;
@@ -46,6 +47,8 @@ interface AuthContextType {
   isLoading: boolean;
   authError: string | null;
   refreshSession: () => Promise<void>;
+  //autenticacion para actualizar el nombre de usuario
+  updateUserName: (username: string) => void;
   logout: () => Promise<void>;
 }
 
@@ -210,6 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("No se pudo cerrar la sesión.");
       }
 
+      resetPusherClient();
       setUser(null);
     } catch (error) {
       setAuthError(
@@ -218,6 +222,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           : "No se pudo cerrar la sesión."
       );
     }
+  }, []);
+ 
+  const updateUserName = useCallback((username: string) => {
+    setUser((currentUser) =>
+      currentUser
+        ? { ...currentUser, username, name: username }
+        : currentUser
+    );
   }, []);
 
   useEffect(() => {
@@ -233,6 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         authError,
         refreshSession,
+        updateUserName,
         logout,
       }}
     >

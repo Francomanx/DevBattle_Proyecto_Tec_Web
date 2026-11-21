@@ -2,11 +2,13 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { useTRPC } from "@/trpc/client";
+//modal de edicion de perfil
+import { ProfileEditModal } from "@/components/profile-edit-modal";
 
 type ProfileTab = "host" | "mod" | "dev" | "projects" | "notifications";
 //estilos para los diferentes estados de la competencia 
@@ -17,14 +19,49 @@ const statusStyles: Record<string, string> = {
   COMPLETED: "border-purple-500/30 bg-purple-500/10 text-purple-300",
 };
 
+function getNotificationTypeBadge(type: string) {
+  switch (type) {
+    case "DISQUALIFICATION":
+      return {
+        label: "Descalificación",
+        className: "bg-red-500/20 text-red-300 border-red-500/30",
+      };
+    case "MOD_REMOVAL":
+      return {
+        label: "Moderación",
+        className: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+      };
+    case "STATE_CHANGE":
+      return {
+        label: "Estado",
+        className: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+      };
+    case "MESSAGE":
+      return {
+        label: "Mensaje",
+        className: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+      };
+    default:
+      return {
+        label: "Aviso",
+        className: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+      };
+  }
+}
+
 // funcion interna de la pagina de perfil
 function UserProfileContent() {
   const params = useParams<{ username: string }>();
   const searchParams = useSearchParams();
+  //router para redireccionar al usuario si cambia su nombre de usuario
+  const router = useRouter();
   const username = params.username;
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const { user: currentUser } = useAuth();
+  //se obtiene el usuario actual y la funcion para actualizar el nombre de usuario
+  const { user: currentUser, updateUserName } = useAuth();
+  //estado para controlar la apertura del modal de edicion de perfil
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const tabParam = searchParams.get("tab") as ProfileTab | null;
   const [selectedTab, setSelectedTab] = useState<ProfileTab | null>(null);
@@ -41,15 +78,19 @@ function UserProfileContent() {
 
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [friendActionFeedback, setFriendActionFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const respondMutation = useMutation(trpc.competition.respondModInvitation.mutationOptions());
   const markAsReadMutation = useMutation(trpc.notification.markAsRead.mutationOptions());
   const deleteNotificationMutation = useMutation(trpc.notification.delete.mutationOptions());
+  const sendFriendRequestMutation = useMutation(trpc.chat.sendFriendRequest.mutationOptions());
 
   const { data, isPending, error, refetch } = useQuery(
     trpc.profile.byUsername.queryOptions({
       username,
-      currentUserId: currentUser?.id,
     })
   );
   //si la api esta cargando, se muestra un mensaje de carga
@@ -161,13 +202,9 @@ function UserProfileContent() {
       setActionError(message);
     }
   };
-
-  const isOwnProfile = Boolean(
-    currentUser &&
-    (currentUser.id === data.user.id ||
-      currentUser.username === data.user.username ||
-      currentUser.name === data.user.username)
-  );
+  //se determina si el perfil que se esta viendo es el del usuario
+  //actual, para mostrar opciones de edicion y notificaciones
+  const isOwnProfile = currentUser?.id === data.user.id;
 
   const pendingInvitations = isOwnProfile
     ? (data.receivedModInvitations ?? []).filter((inv) => inv.status === "PENDING")
@@ -234,14 +271,48 @@ function UserProfileContent() {
         )}
 
         {isOwnProfile && (
+          //boton de edicion de perfil
           <button
             type="button"
-            disabled
-            title="La edición de perfil se implementará en otra tarea."
-            className="mt-6 w-full cursor-not-allowed rounded-lg border border-[#34445F] px-4 py-2 text-sm font-semibold text-slate-400"
+            onClick={() => setIsEditModalOpen(true)}
+            className="mt-6 w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600"
           >
             Editar perfil
           </button>
+        )}
+
+        {!isOwnProfile && currentUser && (
+          <div className="mt-6 space-y-2">
+            <button
+              type="button"
+              disabled={sendFriendRequestMutation.isPending}
+              onClick={async () => {
+                setFriendActionFeedback(null);
+                try {
+                  const res = await sendFriendRequestMutation.mutateAsync({
+                    username: data.user.username,
+                  });
+                  setFriendActionFeedback({ type: "success", text: res.message });
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : "Error al enviar la solicitud.";
+                  setFriendActionFeedback({ type: "error", text: msg });
+                }
+              }}
+              className="w-full rounded-lg bg-[#FF6B00] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#E05E00] disabled:opacity-50"
+            >
+              {sendFriendRequestMutation.isPending ? "Enviando..." : "Enviar Solicitud de Amistad"}
+            </button>
+            {friendActionFeedback && (
+              <div
+                className={`rounded-lg border p-2 text-xs font-medium ${friendActionFeedback.type === "success"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    : "border-red-500/30 bg-red-500/10 text-red-300"
+                  }`}
+              >
+                {friendActionFeedback.text}
+              </div>
+            )}
+          </div>
         )}
       </aside>
 
@@ -379,8 +450,8 @@ function UserProfileContent() {
                   aria-selected={activeTab === tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === tab.id
-                      ? "bg-orange-500 text-white"
-                      : "text-slate-400 hover:bg-[#1A2640] hover:text-white"
+                    ? "bg-orange-500 text-white"
+                    : "text-slate-400 hover:bg-[#1A2640] hover:text-white"
                     }`}
                 >
                   {tab.label}
@@ -455,7 +526,7 @@ function UserProfileContent() {
               {activeTab === "notifications" && (
                 <div className="space-y-4">
                   {(!data.notifications || data.notifications.length === 0) &&
-                  (!data.receivedModInvitations || data.receivedModInvitations.length === 0) ? (
+                    (!data.receivedModInvitations || data.receivedModInvitations.length === 0) ? (
                     <EmptyTab message="No tienes notificaciones registradas." />
                   ) : (
                     <div className="space-y-3">
@@ -476,19 +547,18 @@ function UserProfileContent() {
                                 </p>
                               </div>
                               <span
-                                className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
-                                  inv.status === "PENDING"
+                                className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${inv.status === "PENDING"
                                     ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                                     : inv.status === "ACCEPTED"
-                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                    : "bg-red-500/20 text-red-300 border border-red-500/30"
-                                }`}
+                                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                      : "bg-red-500/20 text-red-300 border border-red-500/30"
+                                  }`}
                               >
                                 {inv.status === "PENDING"
                                   ? "Pendiente"
                                   : inv.status === "ACCEPTED"
-                                  ? "Aceptada"
-                                  : "Rechazada"}
+                                    ? "Aceptada"
+                                    : "Rechazada"}
                               </span>
                             </div>
                           ))}
@@ -523,11 +593,10 @@ function UserProfileContent() {
                             {data.notifications.map((n) => (
                               <div
                                 key={n.id}
-                                className={`rounded-xl border p-3.5 text-xs flex items-center justify-between gap-3 transition ${
-                                  !n.isRead
+                                className={`rounded-xl border p-3.5 text-xs flex items-center justify-between gap-3 transition ${!n.isRead
                                     ? "border-orange-500/40 bg-[#121D32] shadow-sm"
                                     : "border-[#263652] bg-[#0A101D]"
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-center gap-3 min-w-0">
                                   {!n.isRead ? (
@@ -539,15 +608,23 @@ function UserProfileContent() {
                                     <p className={`${!n.isRead ? "text-white font-medium" : "text-slate-300"}`}>
                                       {n.content}
                                     </p>
-                                    <p className="text-slate-500 text-[10px] mt-0.5">
-                                      {new Date(n.createdAt).toLocaleDateString("es-ES", {
-                                        day: "numeric",
-                                        month: "short",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span
+                                        className={`rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase ${getNotificationTypeBadge(n.type).className
+                                          }`}
+                                      >
+                                        {getNotificationTypeBadge(n.type).label}
+                                      </span>
+                                      <span className="text-slate-500 text-[10px]">
+                                        {new Date(n.createdAt).toLocaleDateString("es-ES", {
+                                          day: "numeric",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 
@@ -590,6 +667,24 @@ function UserProfileContent() {
           </div>
         )}
       </section>
+      {isOwnProfile && isEditModalOpen && (
+        //modal de edicion de perfil
+        <ProfileEditModal
+          username={data.user.username}
+          description={data.user.description}
+          githubUrl={data.user.githubUrl}
+          onClose={() => setIsEditModalOpen(false)}
+          onSaved={(updatedProfile) => {
+            updateUserName(updatedProfile.username);
+            void queryClient.invalidateQueries();
+            if (updatedProfile.username !== username) {
+              router.replace(
+                `/usuarios/${encodeURIComponent(updatedProfile.username)}`
+              );
+            }
+          }}
+        />
+      )}
     </main>
   );
 }

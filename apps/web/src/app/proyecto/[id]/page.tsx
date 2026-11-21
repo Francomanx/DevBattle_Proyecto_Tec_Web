@@ -1,20 +1,33 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/context/auth-context";
 import { useTRPC } from "@/trpc/client";
+import { VoteProjectForm } from "@/components/vote-project-form";
 
 // 1. Tu componente original ahora es una función interna (sin export default)
 function ProjectDetailContent() {
   const params = useParams();
   const projectId = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
   const trpc = useTRPC();
-  
-  const { data: project, isLoading, error } = useQuery(
+  const { user } = useAuth();
+
+  console.log("--> ID recibido en la página del proyecto:", projectId);
+  console.log("--> Parámetros completos:", params);
+
+  const [isDisqualifying, setIsDisqualifying] = useState(false);
+  const [disqualifyReason, setDisqualifyReason] = useState("");
+  const [disqualifyError, setDisqualifyError] = useState<string | null>(null);
+  const [disqualifySuccess, setDisqualifySuccess] = useState<string | null>(null);
+
+  const { data: project, isLoading, error, refetch: refetchProject } = useQuery(
     trpc.project.byId.queryOptions({ id: projectId })
   );
+
+  const disqualifyMutation = useMutation(trpc.project.disqualify.mutationOptions());
 
   if (isLoading) {
     return (
@@ -44,6 +57,13 @@ function ProjectDetailContent() {
     month: 'long',
     year: 'numeric'
   });
+
+  const callerParticipant = project.competition?.participants?.find(
+    (p) => p.userId === user?.id
+  );
+  const isHost = callerParticipant?.role === "HOST";
+  const isMod = callerParticipant?.role === "MOD";
+  const canModerate = Boolean(user && (isHost || isMod));
 
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-8 md:py-12">
@@ -100,6 +120,17 @@ function ProjectDetailContent() {
               </div>
             </div>
           </div>
+          
+          <VoteProjectForm
+            projectId={project.id}
+            competitionStatus={project.competition?.status || ""}
+            isDisqualified={project.isDisqualified}
+            projectAuthorId={project.authorId}
+            metrics={project.competition?.metrics || []}
+            existingVotes={project.votes?.filter((v: any) => v.voterId === user?.id) || []}
+            onVoteSuccess={() => refetchProject()}
+          />
+
         </div>
 
         <div className="flex flex-col gap-6 lg:col-span-1">
@@ -178,6 +209,93 @@ function ProjectDetailContent() {
               )}
             </div>
           </div>
+
+          {canModerate && !project.isDisqualified && (
+            <div className="rounded-xl border border-red-500/30 bg-[#1E2433] p-6 shadow-lg space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-red-400">
+                Moderación del Proyecto
+              </h3>
+              {!isDisqualifying ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDisqualifying(true);
+                    setDisqualifyError(null);
+                  }}
+                  className="w-full rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/20 active:scale-[0.98]"
+                >
+                  Descalificar Proyecto
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-300">
+                    Indica el motivo formal de descalificación. El autor recibirá una notificación informativa.
+                  </p>
+                  <textarea
+                    rows={3}
+                    value={disqualifyReason}
+                    onChange={(e) => {
+                      setDisqualifyReason(e.target.value);
+                      if (disqualifyError) setDisqualifyError(null);
+                    }}
+                    placeholder="Describe el motivo de la descalificación (mínimo 5 caracteres)..."
+                    className="w-full rounded-lg border border-[#263652] bg-[#0A101D] p-2.5 text-xs text-white placeholder-slate-500 focus:border-red-500 focus:outline-none"
+                  />
+                  {disqualifyError && (
+                    <p className="text-[11px] text-red-400 font-medium">
+                      {disqualifyError}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={disqualifyMutation.isPending}
+                      onClick={async () => {
+                        if (disqualifyReason.trim().length < 5) {
+                          setDisqualifyError("Debes ingresar un motivo de al menos 5 caracteres.");
+                          return;
+                        }
+                        try {
+                          await disqualifyMutation.mutateAsync({
+                            projectId: project.id,
+                            reason: disqualifyReason.trim(),
+                            userId: user?.id,
+                          });
+                          setIsDisqualifying(false);
+                          setDisqualifyReason("");
+                          setDisqualifySuccess("Proyecto descalificado exitosamente.");
+                          await refetchProject();
+                        } catch (err: unknown) {
+                          const message = err instanceof Error ? err.message : "Error al descalificar el proyecto.";
+                          setDisqualifyError(message);
+                        }
+                      }}
+                      className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-500 disabled:opacity-50"
+                    >
+                      {disqualifyMutation.isPending ? "Procesando..." : "Confirmar Descalificación"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={disqualifyMutation.isPending}
+                      onClick={() => {
+                        setIsDisqualifying(false);
+                        setDisqualifyReason("");
+                        setDisqualifyError(null);
+                      }}
+                      className="rounded-lg border border-[#263652] bg-[#0B111E] px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {disqualifySuccess && (
+                <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 p-2.5 rounded-lg">
+                  {disqualifySuccess}
+                </p>
+              )}
+            </div>
+          )}
 
         </div>
       </div>
