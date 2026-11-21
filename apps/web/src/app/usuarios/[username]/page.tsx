@@ -423,10 +423,6 @@ function UserProfileContent() {
           </div>
         )}
 
-        <div className="rounded-xl border border-[#34445F] bg-[#111A2E] p-4 text-sm text-slate-400">
-          Medallas: pendiente de definir cómo se obtienen y transfieren.
-        </div>
-
         {!hasActivity ? (
           <div className="rounded-2xl border border-dashed border-[#34445F] p-10 text-center">
             <h2 className="font-semibold text-white">
