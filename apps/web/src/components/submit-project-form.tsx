@@ -10,6 +10,7 @@ interface SubmitProjectProps {
   competitionStatus: string;
   fileFormats: string;
   hasUserAlreadySubmitted: boolean;
+  isDev?: boolean;
   onSuccessSubmit: () => void;
 }
 
@@ -18,6 +19,7 @@ export function SubmitProjectForm({
   competitionStatus,
   fileFormats,
   hasUserAlreadySubmitted,
+  isDev,
   onSuccessSubmit,
 }: SubmitProjectProps) {
   const trpc = useTRPC();
@@ -60,18 +62,8 @@ export function SubmitProjectForm({
     );
   }
 
-  if (hasUserAlreadySubmitted) {
-    return (
-      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center">
-        <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 mb-3">
-          <span className="text-white font-bold">✓</span>
-        </div>
-        <h3 className="text-emerald-400 font-bold mb-1">¡Ya estás participando!</h3>
-        <p className="text-xs text-slate-300">
-          Tu proyecto ha sido recibido con éxito. Podrás ver los resultados cuando termine la fase de votación.
-        </p>
-      </div>
-    );
+  if (hasUserAlreadySubmitted || isDev) {
+    return null;
   }
 
   const availableFormats = fileFormats
@@ -145,8 +137,12 @@ export function SubmitProjectForm({
       await queryClient.invalidateQueries({ queryKey: [["competition", "byId"]] });
       onSuccessSubmit();
 
-    } catch (err: any) {
-      setErrorMessage(err.message || "Ocurrió un error inesperado al enviar el proyecto.");
+    } catch (err: unknown) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error inesperado al enviar el proyecto."
+      );
     } finally {
       setIsUploading(false);
     }

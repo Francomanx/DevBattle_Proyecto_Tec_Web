@@ -242,6 +242,29 @@ export const projectRouter = createTRPCRouter({
         });
       }
 
+      const existingParticipant = await ctx.prisma.competitionParticipant.findUnique({
+        where: {
+          userId_competitionId: {
+            userId,
+            competitionId: input.competitionId,
+          },
+        },
+      });
+
+      if (existingParticipant?.role === "HOST") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "El host de la competencia no puede participar como dev en la misma competencia.",
+        });
+      }
+
+      if (existingParticipant?.role === "MOD") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Un moderador de la competencia no puede participar como dev en la misma competencia.",
+        });
+      }
+
       const existingSubmission = await ctx.prisma.project.findFirst({
         where: {
           competitionId: input.competitionId,
@@ -249,10 +272,10 @@ export const projectRouter = createTRPCRouter({
         },
       });
 
-      if (existingSubmission) {
+      if (existingSubmission || existingParticipant?.role === "DEV") {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "Ya has enviado un proyecto para esta competencia. Solo se permite un envío por usuario.",
+          message: "Ya has enviado un proyecto o participas como dev en esta competencia.",
         });
       }
 

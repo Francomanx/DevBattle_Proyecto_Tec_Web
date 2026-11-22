@@ -688,6 +688,9 @@ export const competitionRouter = createTRPCRouter({
             where: { status: "PENDING" },
             include: { invitedUser: { select: { id: true, username: true } } },
           },
+          projects: {
+            select: { authorId: true },
+          },
         },
       });
 
@@ -699,6 +702,12 @@ export const competitionRouter = createTRPCRouter({
           .filter((p) => p.role === "MOD")
           .map((p) => p.userId)
       );
+      const devUserIds = new Set([
+        ...competition.participants
+          .filter((p) => p.role === "DEV")
+          .map((p) => p.userId),
+        ...competition.projects.map((p) => p.authorId),
+      ]);
       const pendingInvitedUserIds = new Set(
         competition.modInvitations.map((inv) => inv.invitedUserId)
       );
@@ -725,6 +734,7 @@ export const competitionRouter = createTRPCRouter({
         description: u.description,
         isHost: hostParticipant?.userId === u.id,
         isMod: modUserIds.has(u.id),
+        isDev: devUserIds.has(u.id),
         isPendingInvite: pendingInvitedUserIds.has(u.id),
       }));
     }),
@@ -840,6 +850,20 @@ export const competitionRouter = createTRPCRouter({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: `El usuario @${targetUser.username} es el host de esta competencia.`,
+        });
+      }
+
+      const existingProject = await ctx.prisma.project.findFirst({
+        where: {
+          competitionId: competition.id,
+          authorId: targetUser.id,
+        },
+      });
+
+      if (existingParticipant?.role === "DEV" || existingProject) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `El usuario @${targetUser.username} ya participa como dev en esta competencia y no puede ser moderador.`,
         });
       }
 
@@ -1075,6 +1099,40 @@ export const competitionRouter = createTRPCRouter({
       }
 
       if (input.accept) {
+        const existingDevParticipant = await ctx.prisma.competitionParticipant.findFirst({
+          where: {
+            competitionId: invitation.competitionId,
+            userId: invitation.invitedUserId,
+            role: "DEV",
+          },
+        });
+        const existingProject = await ctx.prisma.project.findFirst({
+          where: {
+            competitionId: invitation.competitionId,
+            authorId: invitation.invitedUserId,
+          },
+        });
+        if (existingDevParticipant || existingProject) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Un usuario con estado dev no puede ser moderador de la misma competencia.",
+          });
+        }
+
+        const existingHostParticipant = await ctx.prisma.competitionParticipant.findFirst({
+          where: {
+            competitionId: invitation.competitionId,
+            userId: invitation.invitedUserId,
+            role: "HOST",
+          },
+        });
+        if (existingHostParticipant) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "El host de la competencia no puede ser moderador de la misma competencia.",
+          });
+        }
+
         await ctx.prisma.$transaction([
           ctx.prisma.modInvitation.update({
             where: { id: invitation.id },

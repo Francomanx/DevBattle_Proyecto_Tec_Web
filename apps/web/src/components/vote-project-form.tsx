@@ -21,6 +21,17 @@ interface VoteProjectFormProps {
   onVoteSuccess?: () => void;
 }
 
+function Wrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-8 rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-xl space-y-4">
+      <h3 className="text-lg font-bold text-white border-b border-[#1E2D4A] pb-3">
+        Votación del Proyecto
+      </h3>
+      {children}
+    </div>
+  );
+}
+
 export function VoteProjectForm({
   projectId,
   competitionStatus,
@@ -46,15 +57,6 @@ export function VoteProjectForm({
   if (competitionStatus !== "VOTING") {
     return null;
   }
-
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <div className="mt-8 rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-xl space-y-4">
-      <h3 className="text-lg font-bold text-white border-b border-[#1E2D4A] pb-3">
-        Votación del Proyecto
-      </h3>
-      {children}
-    </div>
-  );
 
   if (isDisqualified) {
     return (
@@ -151,8 +153,12 @@ export function VoteProjectForm({
 
       setSuccessMessage(res.message);
       if (onVoteSuccess) onVoteSuccess();
-    } catch (error: any) {
-      setErrorMessage(error.message || "Ocurrió un error al registrar el voto.");
+    } catch (error: unknown) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error al registrar el voto."
+      );
     }
   };
 

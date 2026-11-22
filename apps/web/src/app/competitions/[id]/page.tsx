@@ -63,6 +63,31 @@ function CompetitionDetailContent() {
       hostParticipant.user?.username === currentUser.name)
   );
 
+  const isDev = Boolean(
+    currentUser &&
+    (competition?.participants.some(
+      (p) =>
+        p.role === "DEV" &&
+        (p.userId === currentUser.id ||
+          p.user?.username === currentUser.username ||
+          p.user?.username === currentUser.name)
+    ) ||
+      competition?.projects?.some((p) => p.authorId === currentUser.id))
+  );
+
+  const isMod = Boolean(
+    currentUser &&
+    competition?.participants.some(
+      (p) =>
+        p.role === "MOD" &&
+        (p.userId === currentUser.id ||
+          p.user?.username === currentUser.username ||
+          p.user?.username === currentUser.name)
+    )
+  );
+
+  const showParticipationOption = competition?.status === "ACTIVE" && !isDev && !isHost && !isMod;
+
   const { data: modInvitations, refetch: refetchInvitations } = useQuery({
     ...trpc.competition.getModInvitations.queryOptions({
       competitionId,
@@ -358,10 +383,10 @@ function CompetitionDetailContent() {
           </div>
 
           {/* GRID LAYOUT: 2 columnas (Izquierda: detalles | Derecha: panel de participación) */}
-          <div className={`grid grid-cols-1 gap-6 ${competition.status === "ACTIVE" ? "lg:grid-cols-3" : ""}`}>
+          <div className={`grid grid-cols-1 gap-6 ${showParticipationOption ? "lg:grid-cols-3" : ""}`}>
 
             {/* COLUMNA IZQUIERDA (Info principal) */}
-            <div className={`${competition.status === "ACTIVE" ? "lg:col-span-2" : ""} space-y-6 min-w-0`}>
+            <div className={`${showParticipationOption ? "lg:col-span-2" : ""} space-y-6 min-w-0`}>
 
               {/* Main Banner Card */}
               <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 sm:p-8 shadow-xl space-y-4">
@@ -380,20 +405,40 @@ function CompetitionDetailContent() {
                     </span>
                   </div>
 
-                  {hostParticipant && (
-                    <div className="flex items-center gap-2 rounded-lg bg-[#0D1527] border border-[#1E2D4A] px-3 py-1.5 text-xs">
-                      <span className="text-slate-400">Host de la competencia:</span>
-                      <Link
-                        href={`/usuarios/${encodeURIComponent(hostParticipant.user.username)}`}
-                        className="font-semibold text-orange-400 hover:text-orange-300"
-                      >
-                        @{hostParticipant.user.username}
-                      </Link>
-                      <span className="rounded bg-orange-500/20 px-1.5 py-0.5 text-[10px] font-bold text-orange-300">
-                        {hostParticipant.role}
-                      </span>
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {hostParticipant && (
+                      <div className="flex items-center gap-2 rounded-lg bg-[#0D1527] border border-[#1E2D4A] px-3 py-1.5 text-xs">
+                        <span className="text-slate-400">Host de la competencia:</span>
+                        <Link
+                          href={`/usuarios/${encodeURIComponent(hostParticipant.user.username)}`}
+                          className="font-semibold text-orange-400 hover:text-orange-300"
+                        >
+                          @{hostParticipant.user.username}
+                        </Link>
+                        <span className="rounded bg-orange-500/20 px-1.5 py-0.5 text-[10px] font-bold text-orange-300">
+                          {hostParticipant.role}
+                        </span>
+                      </div>
+                    )}
+
+                    {isDev && (
+                      <div className="flex items-center gap-2 rounded-lg bg-[#0D1527] border border-[#1E2D4A] px-3 py-1.5 text-xs">
+                        <span className="text-slate-400">Tu estado:</span>
+                        <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/30">
+                          DEV (Participante)
+                        </span>
+                      </div>
+                    )}
+
+                    {isMod && (
+                      <div className="flex items-center gap-2 rounded-lg bg-[#0D1527] border border-[#1E2D4A] px-3 py-1.5 text-xs">
+                        <span className="text-slate-400">Tu estado:</span>
+                        <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-blue-300 border border-blue-500/30">
+                          MOD (Moderador)
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -626,7 +671,7 @@ function CompetitionDetailContent() {
                                 </div>
                                 <ul className="max-h-56 overflow-y-auto">
                                   {userSuggestions.map((u) => {
-                                    const isSelectable = !u.isMod && !u.isPendingInvite && !u.isHost;
+                                    const isSelectable = !u.isMod && !u.isPendingInvite && !u.isHost && !u.isDev;
                                     return (
                                       <li
                                         key={u.id}
@@ -664,6 +709,10 @@ function CompetitionDetailContent() {
                                           ) : u.isMod ? (
                                             <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-300 border border-blue-500/30">
                                               Ya es MOD
+                                            </span>
+                                          ) : u.isDev ? (
+                                            <span className="rounded bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-300 border border-rose-500/30">
+                                              Participante DEV
                                             </span>
                                           ) : u.isPendingInvite ? (
                                             <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
@@ -1008,16 +1057,15 @@ function CompetitionDetailContent() {
             </div>
 
             {/* COLUMNA DERECHA (Panel de Participación) */}
-            {competition.status === "ACTIVE" && (
+            {showParticipationOption && (
               <div className="lg:col-span-1">
                 <div className="sticky top-6">
                   <SubmitProjectForm
                     competitionId={competition.id}
                     competitionStatus={competition.status}
                     fileFormats={competition.fileFormat || "link"}
-                    hasUserAlreadySubmitted={Boolean(
-                      competition.projects?.some((p: any) => p.authorId === currentUser?.id)
-                    )}
+                    hasUserAlreadySubmitted={false}
+                    isDev={isDev}
                     onSuccessSubmit={() => refetch()}
                   />
                 </div>

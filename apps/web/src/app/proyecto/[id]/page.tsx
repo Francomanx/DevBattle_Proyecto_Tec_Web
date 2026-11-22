@@ -127,7 +127,7 @@ function ProjectDetailContent() {
             isDisqualified={project.isDisqualified}
             projectAuthorId={project.authorId}
             metrics={project.competition?.metrics || []}
-            existingVotes={project.votes?.filter((v: any) => v.voterId === user?.id) || []}
+            existingVotes={project.votes?.filter((v) => v.voterId === user?.id) || []}
             onVoteSuccess={() => refetchProject()}
           />
 
