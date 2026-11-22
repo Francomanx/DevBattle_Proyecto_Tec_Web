@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const ALLOWED_EXTENSIONS = [
@@ -341,6 +341,83 @@ export const projectRouter = createTRPCRouter({
         message: "Proyecto registrado exitosamente en la competencia.",
         projectId: createdProject.id,
         presignedUrl,
+      };
+    }),
+  getDownloadUrl: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string().min(1, "El ID del proyecto es requerido"),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const project = await ctx.prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: {
+          id: true,
+          title: true,
+          fileUrl: true,
+          repoUrl: true,
+        },
+      });
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "El proyecto solicitado no existe.",
+        });
+      }
+
+      if (!project.fileUrl || project.fileUrl.trim() === "") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Este proyecto no tiene un archivo adjunto para descargar (solo cuenta con enlace externo).",
+        });
+      }
+
+      const bucketName = process.env.R2_BUCKET_NAME!;
+
+      try {
+        await s3Client.send(
+          new HeadObjectCommand({
+            Bucket: bucketName,
+            Key: project.fileUrl,
+          })
+        );
+      } catch (error: any) {
+        if (
+          error?.name === "NotFound" ||
+          error?.$metadata?.httpStatusCode === 404
+        ) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message:
+              "El archivo asociado a este proyecto ya no existe en el almacenamiento.",
+          });
+        }
+
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Error al verificar el archivo en el almacenamiento.",
+        });
+      }
+
+      const rawKeyName = project.fileUrl.split("/").pop() || "proyecto";
+      const cleanFileName = rawKeyName.replace(/^[^_]+_\d+_/, "");
+
+      const command = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: project.fileUrl,
+        ResponseContentDisposition: `attachment; filename="${cleanFileName}"`,
+      });
+
+      const downloadUrl = await getSignedUrl(s3Client, command, {
+        expiresIn: 900,
+      });
+
+      return {
+        downloadUrl,
+        fileName: cleanFileName,
       };
     }),
 });

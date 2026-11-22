@@ -2,13 +2,12 @@
 
 import { Suspense, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/context/auth-context";
 import { useTRPC } from "@/trpc/client";
 import { VoteProjectForm } from "@/components/vote-project-form";
 
-// 1. Tu componente original ahora es una función interna (sin export default)
 function ProjectDetailContent() {
   const params = useParams();
   const projectId = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : "";
@@ -23,6 +22,50 @@ function ProjectDetailContent() {
   const [disqualifyReason, setDisqualifyReason] = useState("");
   const [disqualifyError, setDisqualifyError] = useState<string | null>(null);
   const [disqualifySuccess, setDisqualifySuccess] = useState<string | null>(null);
+
+  const router = useRouter();
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const downloadQuery = useQuery({
+    ...trpc.project.getDownloadUrl.queryOptions({ projectId }),
+    enabled: false,
+  });
+
+  async function handleDownload() {
+    setDownloadError(null);
+
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      setIsDownloading(true);
+      const result = await downloadQuery.refetch();
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (result.data?.downloadUrl) {
+        const link = document.createElement("a");
+        link.href = result.data.downloadUrl;
+        link.setAttribute("download", result.data.fileName || "proyecto");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+    } catch (err: unknown) {
+      setDownloadError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo descargar el archivo del proyecto."
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  }
 
   const { data: project, isLoading, error, refetch: refetchProject } = useQuery(
     trpc.project.byId.queryOptions({ id: projectId })
@@ -245,15 +288,30 @@ function ProjectDetailContent() {
               )}
               
               {project.fileUrl && (
-                <a 
-                  href={project.fileUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="group flex w-full items-center justify-center gap-2 rounded-lg border border-[#455b7a] bg-[#263245] px-6 py-3 font-semibold text-white transition-all hover:bg-[#2d3a50]"
+                <button
+                  type="button"
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                  className="group flex w-full items-center justify-center gap-2 rounded-lg border border-[#455b7a] bg-[#263245] px-6 py-3 font-semibold text-white transition-all hover:bg-[#2d3a50] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-y-0.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                  Descargar Archivo
-                </a>
+                  {isDownloading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Preparando descarga...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-y-0.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                      Descargar proyecto
+                    </>
+                  )}
+                </button>
+              )}
+
+              {downloadError && (
+                <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+                  {downloadError}
+                </p>
               )}
 
               {!project.repoUrl && !project.fileUrl && (
