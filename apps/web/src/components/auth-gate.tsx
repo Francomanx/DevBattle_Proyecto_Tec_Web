@@ -5,7 +5,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ChallengeList } from "@/components/challenge-list";
 import { useTRPC } from "@/trpc/client";
 //imports para el manejo de la sesion real
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 
 type AuthSession = {
@@ -103,6 +103,12 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
 
 export function AuthGate() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawCallbackUrl = searchParams.get("callbackUrl") || searchParams.get("redirect");
+  const callbackUrl =
+    rawCallbackUrl && rawCallbackUrl.startsWith("/") && !rawCallbackUrl.startsWith("//")
+      ? rawCallbackUrl
+      : "/";
   const { refreshSession } = useAuth();
   const trpc = useTRPC();
   const registerMutation = useMutation(trpc.auth.register.mutationOptions());
@@ -137,9 +143,9 @@ export function AuthGate() {
 
   useEffect(() => {
     if (session?.user) {
-      router.replace("/");
+      router.replace(callbackUrl);
     }
-  }, [router, session]);
+  }, [router, session, callbackUrl]);
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
@@ -161,7 +167,7 @@ export function AuthGate() {
       const signedInSession = await signIn(email, password);
       await refreshSession();
       setSession(signedInSession);
-      router.replace("/");
+      router.replace(callbackUrl);
     } catch (submitError) {
       setError(errorMessage(submitError));
     } finally {

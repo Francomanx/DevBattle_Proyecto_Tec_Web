@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
 import { useAuth } from "@/context/auth-context";
@@ -41,13 +42,20 @@ export function SubmitProjectForm({
   const submitMutation = useMutation(trpc.project.submitToCompetition.mutationOptions());
   
   if (!user) {
+    const loginHref = competitionId
+      ? `/login?callbackUrl=${encodeURIComponent(`/competitions/${competitionId}`)}`
+      : "/login";
+
     return (
       <div className="rounded-xl border border-[#1E2D4A] bg-[#0E1628] p-6 text-center">
         <h3 className="text-white font-bold mb-2">Únete al desafío</h3>
         <p className="text-sm text-slate-400 mb-4">Inicia sesión para poder participar y enviar tu solución.</p>
-        <button className="px-4 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">
+        <Link
+          href={loginHref}
+          className="inline-block px-4 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition"
+        >
           Iniciar Sesión
-        </button>
+        </Link>
       </div>
     );
   }
