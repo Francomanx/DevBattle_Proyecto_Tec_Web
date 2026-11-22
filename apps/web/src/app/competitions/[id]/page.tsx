@@ -384,7 +384,7 @@ function CompetitionDetailContent() {
 
   return (
     <main
-      className={`mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-6 ${competition.status === "ACTIVE" ? "max-w-7xl" : "max-w-5xl"
+      className={`mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-6 ${competition.status !== "DRAFT" ? "max-w-7xl" : "max-w-5xl"
         }`}
     >
       {isEditing ? (
@@ -605,12 +605,23 @@ function CompetitionDetailContent() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <span
-                      className={`rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${competition.status === "DRAFT"
-                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                        : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                        }`}
+                      className={`rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wider ${
+                        competition.status === "DRAFT"
+                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          : competition.status === "VOTING"
+                          ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                          : competition.status === "COMPLETED"
+                          ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                          : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                      }`}
                     >
-                      {competition.status === "DRAFT" ? "ESTADO: BORRADOR" : "ESTADO: ACTIVA"}
+                      {competition.status === "DRAFT"
+                        ? "ESTADO: BORRADOR"
+                        : competition.status === "VOTING"
+                        ? "ESTADO: EN VOTACIÓN"
+                        : competition.status === "COMPLETED"
+                        ? "ESTADO: FINALIZADA"
+                        : "ESTADO: ACTIVA"}
                     </span>
                     <span className="text-xs text-slate-400">
                       Creado el {new Date(competition.createdAt).toLocaleDateString("es-ES")}

@@ -1,6 +1,15 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
+import { updateCompetitionStatuses } from "../services/cron.service";
+import type { PrismaClient } from "@devbattle/db";
+
+function hasMethod(obj: unknown, prop: string, method: string): boolean {
+  if (!obj || typeof obj !== "object") return false;
+  const target = (obj as Record<string, unknown>)[prop];
+  if (!target || typeof target !== "object") return false;
+  return typeof (target as Record<string, unknown>)[method] === "function";
+}
 
 const competitionStatus = z.enum([
   "DRAFT",
@@ -69,6 +78,18 @@ export function validateCompetitionForActivation(competition: {
   ) {
     const subTime = new Date(competition.submissionDeadline).getTime();
     const voteTime = new Date(competition.votingDeadline).getTime();
+    const nowWithBuffer = Date.now() - 60 * 1000;
+
+    if (subTime < nowWithBuffer) {
+      errors.push(
+        "La fecha límite de recepción de soluciones no puede ser anterior a la fecha y hora actual."
+      );
+    }
+    if (voteTime < nowWithBuffer) {
+      errors.push(
+        "La fecha límite de votación no puede ser anterior a la fecha y hora actual."
+      );
+    }
     if (subTime >= voteTime) {
       errors.push(
         "La fecha límite de votación debe ser posterior a la fecha límite de recepción de proyectos."
@@ -83,6 +104,14 @@ export const competitionRouter = createTRPCRouter({
   list: publicProcedure
     .input(z.object({ status: competitionStatus.optional() }).optional())
     .query(async ({ ctx, input }) => {
+      try {
+        if (hasMethod(ctx.prisma, "competition", "findMany")) {
+          await updateCompetitionStatuses(ctx.prisma as unknown as PrismaClient);
+        }
+      } catch (err) {
+        console.error("Error actualizando estados en competition.list:", err);
+      }
+
       const targetStatus = input?.status;
       const whereCondition: Record<string, unknown> = {};
 
@@ -133,6 +162,14 @@ export const competitionRouter = createTRPCRouter({
   byId: publicProcedure
     .input(z.object({ id: z.string().min(1), userId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
+      try {
+        if (hasMethod(ctx.prisma, "competition", "findMany")) {
+          await updateCompetitionStatuses(ctx.prisma as unknown as PrismaClient);
+        }
+      } catch (err) {
+        console.error("Error actualizando estados en competition.byId:", err);
+      }
+
       const competition = await ctx.prisma.competition.findUnique({
         where: { id: input.id },
         include: {
@@ -164,6 +201,31 @@ export const competitionRouter = createTRPCRouter({
 
       if (!competition) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Competencia no encontrada" });
+      }
+
+      // Sincronizar el estado de la competencia si los plazos han vencido
+      if (competition.status === "ACTIVE" || competition.status === "VOTING") {
+        const now = new Date();
+        let targetStatus: "VOTING" | "COMPLETED" | null = null;
+        if (competition.votingDeadline && now >= new Date(competition.votingDeadline)) {
+          targetStatus = "COMPLETED";
+        } else if (
+          competition.status === "ACTIVE" &&
+          competition.submissionDeadline &&
+          now >= new Date(competition.submissionDeadline)
+        ) {
+          targetStatus = "VOTING";
+        }
+
+        if (targetStatus && targetStatus !== competition.status) {
+          if (hasMethod(ctx.prisma, "competition", "update")) {
+            await ctx.prisma.competition.update({
+              where: { id: competition.id },
+              data: { status: targetStatus },
+            });
+          }
+          competition.status = targetStatus;
+        }
       }
 
       // Proteger el acceso a competencias en estado DRAFT:
@@ -448,6 +510,31 @@ export const competitionRouter = createTRPCRouter({
         });
       }
 
+      const nowWithBuffer = Date.now() - 60 * 1000;
+      const subTime = input.submissionDeadline.getTime();
+      const voteTime = input.votingDeadline.getTime();
+
+      if (subTime < nowWithBuffer) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "La fecha límite de recepción de soluciones no puede ser anterior a la fecha y hora actual.",
+        });
+      }
+
+      if (voteTime < nowWithBuffer) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "La fecha límite de votación no puede ser anterior a la fecha y hora actual.",
+        });
+      }
+
+      if (voteTime <= subTime) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "La fecha límite de votación debe ser posterior a la fecha límite de recepción de proyectos.",
+        });
+      }
+
       const targetStatus = input.status === "ACTIVE" ? "ACTIVE" : "DRAFT";
 
       // Si se activa/publica de inmediato (Caso 2), validar todos los campos obligatorios antes de activarla
@@ -553,6 +640,20 @@ export const competitionRouter = createTRPCRouter({
 
       // Si la fecha límite de votación aún no finaliza, no se calcula ni expone el TOP
       if (!isVotingClosed) {
+        if (
+          competition.status === "ACTIVE" &&
+          competition.submissionDeadline &&
+          now.getTime() >= new Date(competition.submissionDeadline).getTime()
+        ) {
+          if (hasMethod(ctx.prisma, "competition", "update")) {
+            await ctx.prisma.competition.update({
+              where: { id: competition.id },
+              data: { status: "VOTING" },
+            });
+          }
+          competition.status = "VOTING";
+        }
+
         return {
           competitionId: competition.id,
           competitionTitle: competition.title,
