@@ -27,6 +27,7 @@ export const profileRouter = createTRPCRouter({
     .input(
       z.object({
         username: z.string().trim().min(1).max(80),
+        currentUserId: z.string().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -99,36 +100,36 @@ export const profileRouter = createTRPCRouter({
 
       const receivedModInvitations = isOwner
         ? await ctx.prisma.modInvitation.findMany({
-            where: {
-              invitedUserId: user.id,
-            },
-            include: {
-              competition: {
-                select: {
-                  id: true,
-                  title: true,
-                  status: true,
-                },
-              },
-              inviter: {
-                select: {
-                  id: true,
-                  username: true,
-                },
+          where: {
+            invitedUserId: user.id,
+          },
+          include: {
+            competition: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
               },
             },
-            orderBy: { createdAt: "desc" },
-          })
+            inviter: {
+              select: {
+                id: true,
+                username: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
         : [];
 
       const notifications = isOwner
         ? await ctx.prisma.notification.findMany({
-            where: {
-              userId: user.id,
-            },
-            orderBy: { createdAt: "desc" },
-            take: 20,
-          })
+          where: {
+            userId: user.id,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        })
         : [];
 
       return {

@@ -267,22 +267,20 @@ export function NotificationsDropdown() {
             <button
               type="button"
               onClick={() => setFilter("all")}
-              className={`flex-1 rounded-lg py-1.5 text-center font-medium transition ${
-                filter === "all"
-                  ? "bg-[#18253D] text-white"
-                  : "text-slate-400 hover:text-white"
-              }`}
+              className={`flex-1 rounded-lg py-1.5 text-center font-medium transition ${filter === "all"
+                ? "bg-[#18253D] text-white"
+                : "text-slate-400 hover:text-white"
+                }`}
             >
               Todas
             </button>
             <button
               type="button"
               onClick={() => setFilter("invitations")}
-              className={`flex-1 rounded-lg py-1.5 text-center font-medium transition flex items-center justify-center gap-1.5 ${
-                filter === "invitations"
-                  ? "bg-[#18253D] text-white"
-                  : "text-slate-400 hover:text-white"
-              }`}
+              className={`flex-1 rounded-lg py-1.5 text-center font-medium transition flex items-center justify-center gap-1.5 ${filter === "invitations"
+                ? "bg-[#18253D] text-white"
+                : "text-slate-400 hover:text-white"
+                }`}
             >
               <span>Solicitudes</span>
               {pendingCount > 0 && (
@@ -294,11 +292,10 @@ export function NotificationsDropdown() {
             <button
               type="button"
               onClick={() => setFilter("unread")}
-              className={`flex-1 rounded-lg py-1.5 text-center font-medium transition flex items-center justify-center gap-1.5 ${
-                filter === "unread"
-                  ? "bg-[#18253D] text-white"
-                  : "text-slate-400 hover:text-white"
-              }`}
+              className={`flex-1 rounded-lg py-1.5 text-center font-medium transition flex items-center justify-center gap-1.5 ${filter === "unread"
+                ? "bg-[#18253D] text-white"
+                : "text-slate-400 hover:text-white"
+                }`}
             >
               <span>No leídas</span>
               {unreadNotifCount > 0 && (
@@ -312,11 +309,10 @@ export function NotificationsDropdown() {
           {/* Feedback mensaje temporal */}
           {feedback && (
             <div
-              className={`px-3 py-2 text-xs font-medium border-b ${
-                feedback.type === "success"
-                  ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
-                  : "bg-red-500/20 border-red-500/30 text-red-300"
-              }`}
+              className={`px-3 py-2 text-xs font-medium border-b ${feedback.type === "success"
+                ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
+                : "bg-red-500/20 border-red-500/30 text-red-300"
+                }`}
             >
               {feedback.text}
             </div>
@@ -403,11 +399,10 @@ export function NotificationsDropdown() {
                 {notifications.map((n) => (
                   <div
                     key={n.id}
-                    className={`p-3.5 transition flex items-start gap-3 ${
-                      !n.isRead
-                        ? "bg-[#111C30] border-l-2 border-orange-500 hover:bg-[#14223A]"
-                        : "bg-transparent hover:bg-[#101726]"
-                    }`}
+                    className={`p-3.5 transition flex items-start gap-3 ${!n.isRead
+                      ? "bg-[#111C30] border-l-2 border-orange-500 hover:bg-[#14223A]"
+                      : "bg-transparent hover:bg-[#101726]"
+                      }`}
                   >
                     <div className="mt-0.5 shrink-0">
                       {!n.isRead ? (
@@ -439,9 +434,8 @@ export function NotificationsDropdown() {
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <span
-                          className={`rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase ${
-                            getNotificationTypeBadge(n.type).className
-                          }`}
+                          className={`rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase ${getNotificationTypeBadge(n.type).className
+                            }`}
                         >
                           {getNotificationTypeBadge(n.type).label}
                         </span>
@@ -486,13 +480,14 @@ export function NotificationsDropdown() {
                       </button>
                     </div>
                   </div>
-                ))}
+                ))
+                }
               </>
             )}
-          </div>
+          </div >
 
           {/* Pie de Menú */}
-          <div className="border-t border-[#1A2640] bg-[#0B111E] px-4 py-2.5 text-center">
+          < div className="border-t border-[#1A2640] bg-[#0B111E] px-4 py-2.5 text-center" >
             <Link
               href={`/usuarios/${encodeURIComponent(user.username)}?tab=notifications`}
               onClick={() => setIsOpen(false)}
@@ -501,9 +496,9 @@ export function NotificationsDropdown() {
               <span>Ver todas en mi perfil</span>
               <span>→</span>
             </Link>
-          </div>
-        </div>
+          </div >
+        </div >
       )}
-    </div>
+    </div >
   );
 }

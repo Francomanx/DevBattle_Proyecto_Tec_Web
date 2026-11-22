@@ -11,6 +11,7 @@
     "dev:web": "pnpm --filter @devbattle/web dev",
     "dev:api": "pnpm --filter @devbattle/api dev",
     "build": "pnpm --filter @devbattle/db generate && pnpm -r --filter \"./apps/*\" build",
+    "test": "pnpm --filter @devbattle/api test",
     "lint": "pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",
     "db:up": "docker compose up -d db",

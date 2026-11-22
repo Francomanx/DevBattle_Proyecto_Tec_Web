@@ -1,7 +1,19 @@
 import { CompetitionStatus, NotificationType, PrismaClient } from "@devbattle/db";
 
+function hasMethod(obj: unknown, prop: string, method: string): boolean {
+  if (!obj || typeof obj !== "object") return false;
+  const target = (obj as Record<string, unknown>)[prop];
+  if (!target || typeof target !== "object") return false;
+  return typeof (target as Record<string, unknown>)[method] === "function";
+}
+
 export async function updateCompetitionStatuses(prisma: PrismaClient) {
-  console.log(`[Cron] Iniciando revisión de estados de competencias - ${new Date().toISOString()}`);
+  if (
+    !hasMethod(prisma, "competition", "findMany") ||
+    !hasMethod(prisma, "competition", "updateMany")
+  ) {
+    return;
+  }
   const now = new Date();
 
   try {
@@ -74,7 +86,10 @@ export async function updateCompetitionStatuses(prisma: PrismaClient) {
         }
       }
 
-      if (voteNotifications.length > 0) {
+      if (
+        voteNotifications.length > 0 &&
+        hasMethod(prisma, "notification", "createMany")
+      ) {
         await prisma.notification.createMany({
           data: voteNotifications,
         });
@@ -133,7 +148,10 @@ export async function updateCompetitionStatuses(prisma: PrismaClient) {
         }
       }
 
-      if (completionNotifications.length > 0) {
+      if (
+        completionNotifications.length > 0 &&
+        hasMethod(prisma, "notification", "createMany")
+      ) {
         await prisma.notification.createMany({
           data: completionNotifications,
         });

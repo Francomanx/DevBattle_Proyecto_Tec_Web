@@ -1,0 +1,5 @@
+describe("Jest Environment Smoke Test", () => {
+  it("should execute tests in Jest with TypeScript", () => {
+    expect(1 + 1).toBe(2);
+  });
+});

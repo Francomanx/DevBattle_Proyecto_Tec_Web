@@ -469,3 +469,27 @@ body {
     transition: none;
   }
 }
+
+/* Scrollbar para listados densos */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #1e2d4a #0a101d;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0a101d;
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1e2d4a;
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ff6b00;
+}

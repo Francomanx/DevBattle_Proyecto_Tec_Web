@@ -77,6 +77,17 @@ const toLocalDatetime = (dateInput: string | Date | undefined) => {
   return date.toISOString().slice(0, 16);
 };
 
+const getFormattedCurrentDate = (): string => {
+  const date = new Date();
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const yyyy = date.getFullYear();
+  const MM = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
+};
+
 type MetricType = "OBJECTIVE" | "SUBJECTIVE";
 
 interface CompetitionMetricData {
@@ -113,16 +124,16 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
   // 1. MÁQUINA DE ESTADOS Y BLOQUEOS
   const status = competition?.status as "DRAFT" | "ACTIVE" | "VOTING" | "COMPLETED";
   const canEditEverything = status === "DRAFT";
-  const canEditActive = status === "ACTIVE"; 
-  
+  const canEditActive = status === "ACTIVE";
+
   const isTitleDisabled = !canEditEverything;
   const isRulesDisabled = !canEditEverything;
   const isFormatDisabled = !canEditEverything;
   const isTagsDisabled = !canEditEverything;
   const isSubDateDisabled = !canEditEverything && !canEditActive;
   const isMetricsDisabled = !canEditEverything && !canEditActive;
-  const isDescDisabled = false; 
-  const isVoteDateDisabled = false; 
+  const isDescDisabled = false;
+  const isVoteDateDisabled = false;
 
   // 2. ESTADOS DEL FORMULARIO
   const [title, setTitle] = useState(competition?.title || "");
@@ -135,7 +146,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
     competition?.fileFormat ? competition.fileFormat.split(",").map((f: string) => f.trim()) : ["link"]
   );
   const [isFormatDropdownOpen, setIsFormatDropdownOpen] = useState(false);
-  
+
   const [metrics, setMetrics] = useState<MetricItem[]>(
     competition?.metrics?.map((m: CompetitionMetricData, idx: number) => ({
       id: `metric-${idx}`,
@@ -210,6 +221,55 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
   const totalAssignedWeight = useMemo(() => metrics.reduce((sum, m) => sum + (Number(m.weight) || 0), 0), [metrics]);
 
   // 4. VALIDACIÓN Y ENVÍO
+  const [minDateTime] = useState(() => getFormattedCurrentDate());
+  const [nowWithBuffer] = useState(() => Date.now() - 60 * 1000);
+
+  const submissionDateError = useMemo(() => {
+    if (!submissionDeadline) {
+      return "Debes definir la fecha límite de recepción de soluciones.";
+    }
+    const subTime = new Date(submissionDeadline).getTime();
+    if (isNaN(subTime)) {
+      return "La fecha límite de recepción de soluciones tiene un formato inválido.";
+    }
+    if (!isSubDateDisabled) {
+      if (subTime < nowWithBuffer) {
+        return "La fecha límite de recepción no puede ser anterior a la fecha actual.";
+      }
+    }
+    return null;
+  }, [submissionDeadline, isSubDateDisabled, nowWithBuffer]);
+
+  const votingDateError = useMemo(() => {
+    if (!votingDeadline) {
+      return "Debes definir la fecha límite de votación.";
+    }
+    const voteTime = new Date(votingDeadline).getTime();
+    if (isNaN(voteTime)) {
+      return "La fecha límite de votación tiene un formato inválido.";
+    }
+    if (!isVoteDateDisabled) {
+      if (voteTime < nowWithBuffer) {
+        return "La fecha límite de votación no puede ser anterior a la fecha actual.";
+      }
+    }
+    if (submissionDeadline) {
+      const subTime = new Date(submissionDeadline).getTime();
+      if (!isNaN(subTime) && voteTime <= subTime) {
+        return "La fecha límite de votación debe ser estrictamente posterior a la fecha límite de recepción.";
+      }
+    }
+    return null;
+  }, [votingDeadline, submissionDeadline, isVoteDateDisabled, nowWithBuffer]);
+
+  const scheduleErrors = useMemo(() => {
+    const errors: string[] = [];
+    if (submissionDateError) errors.push(submissionDateError);
+    if (votingDateError) errors.push(votingDateError);
+    return errors;
+  }, [submissionDateError, votingDateError]);
+
+  // Validations
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
     if (!title.trim()) {
@@ -242,26 +302,19 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
       );
     }
 
-    if (!submissionDeadline) {
-      errors.push("Debes definir la fecha límite de recepción de soluciones.");
-    }
-    if (!votingDeadline) {
-      errors.push("Debes definir la fecha límite de votación.");
-    }
-    if (submissionDeadline && votingDeadline) {
-      const subDate = new Date(submissionDeadline).getTime();
-      const voteDate = new Date(votingDeadline).getTime();
-      if (isNaN(subDate) || isNaN(voteDate)) {
-        errors.push("Las fechas ingresadas tienen un formato inválido.");
-      } else if (subDate >= voteDate) {
-        errors.push(
-          "La fecha límite de votación debe ser posterior a la fecha límite de recepción de proyectos."
-        );
-      }
-    }
+    // Cronograma y fechas
+    errors.push(...scheduleErrors);
 
     return errors;
-  }, [title, description, rules, selectedFormats, metrics, totalAssignedWeight, submissionDeadline, votingDeadline]);
+  }, [
+    title,
+    description,
+    rules,
+    selectedFormats,
+    metrics,
+    totalAssignedWeight,
+    scheduleErrors,
+  ]);
 
   const isFormValid = validationErrors.length === 0;
 
@@ -275,7 +328,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
       return;
     }
 
-  try {
+    try {
       const payload: {
         id: string;
         title?: string;
@@ -291,8 +344,8 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
           maxValue: number;
           weight: number;
         }[];
-      } = { 
-        id: competition.id 
+      } = {
+        id: competition.id
       };
 
       if (!isTitleDisabled) payload.title = title.trim();
@@ -300,10 +353,10 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
       if (!isRulesDisabled) payload.rules = rules.trim();
       if (!isFormatDisabled) payload.fileFormat = selectedFormats.join(", ");
       if (!isTagsDisabled) payload.tags = selectedCategories;
-      
+
       if (!isSubDateDisabled) payload.submissionDeadline = new Date(submissionDeadline);
       if (!isVoteDateDisabled) payload.votingDeadline = new Date(votingDeadline);
-      
+
       if (!isMetricsDisabled) {
         payload.metrics = metrics.map((m) => ({
           name: m.name.trim(),
@@ -325,7 +378,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
-      
+
       {/* Page Header Banner */}
       <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 sm:p-8 shadow-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -333,7 +386,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
             Editar competencia
           </h1>
           <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-3xl">
-            Estado actual: <span className="font-bold text-orange-400">{status}</span>. 
+            Estado actual: <span className="font-bold text-orange-400">{status}</span>.
             {!canEditEverything && " Algunos campos están bloqueados y se muestran en modo de solo lectura por las reglas de esta etapa."}
           </p>
         </div>
@@ -344,7 +397,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
         <div className="border-b border-[#1A2845] bg-[#0E1628] px-6 py-4 flex items-center gap-3">
           <div className="h-4 w-4 rounded-sm bg-white shadow-sm flex-shrink-0" />
           <h2 className="text-base font-bold text-white tracking-wide">
-            1. Información base del reto
+            Información base del reto
           </h2>
         </div>
 
@@ -509,7 +562,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
         <div className="border-b border-[#1A2845] bg-[#0E1628] px-6 py-4 flex items-center gap-3 rounded-t-2xl">
           <div className="h-4 w-4 rounded-sm bg-white shadow-sm flex-shrink-0" />
           <h2 className="text-base font-bold text-white tracking-wide">
-            2. Reglas y formato de recepción
+            Reglas y formato de recepción
           </h2>
         </div>
 
@@ -552,7 +605,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
             <button
               type="button"
               onClick={() => {
-                  if(!isFormatDisabled) setIsFormatDropdownOpen(!isFormatDropdownOpen)
+                if (!isFormatDisabled) setIsFormatDropdownOpen(!isFormatDropdownOpen)
               }}
               disabled={isFormatDisabled}
               className="w-full flex items-center justify-between rounded-xl border border-[#1E2D4A] bg-[#0A101D] px-4 py-3 text-sm text-white cursor-pointer hover:border-[#2B406A] transition text-left disabled:opacity-50 disabled:cursor-not-allowed"
@@ -639,7 +692,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
           <div className="flex items-center gap-3">
             <div className="h-4 w-4 rounded-sm bg-orange-500 shadow-sm flex-shrink-0" />
             <h2 className="text-base font-bold text-white tracking-wide">
-              3. Configuración de evaluación y rúbrica
+              Configuración de evaluación y rúbrica
             </h2>
           </div>
           <span className="text-xs text-slate-400">
@@ -884,17 +937,61 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
 
       {/* SECTION 4: CRONOGRAMA Y FECHAS LÍMITE */}
       <section className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] overflow-hidden shadow-lg transition duration-200 hover:border-[#283C63]">
-        <div className="border-b border-[#1A2845] bg-[#0E1628] px-6 py-4 flex items-center gap-3">
-          <div className="h-4 w-4 rounded-sm bg-white shadow-sm flex-shrink-0" />
-          <h2 className="text-base font-bold text-white tracking-wide">
-            4. Cronograma y fechas limite
-          </h2>
+        <div className="border-b border-[#1A2845] bg-[#0E1628] px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-4 w-4 rounded-sm bg-white shadow-sm flex-shrink-0" />
+            <h2 className="text-base font-bold text-white tracking-wide">
+              Cronograma y fechas limite
+            </h2>
+          </div>
+          {scheduleErrors.length > 0 && (
+            <span className="rounded-full bg-red-500/20 border border-red-500/40 px-2.5 py-0.5 text-[11px] font-bold text-red-300">
+              Fechas inconsistentes
+            </span>
+          )}
         </div>
 
-        <div className="p-6">
+        <div className="p-6 space-y-4">
+          {/* Alerta visible para fechas inconsistentes */}
+          {scheduleErrors.length > 0 && (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-xs shadow-md animate-fadeIn"
+            >
+              <div className="flex items-start gap-3">
+                <svg
+                  className="h-5 w-5 text-red-400 shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="2"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                  />
+                </svg>
+                <div className="space-y-1">
+                  <p className="font-bold text-red-200">
+                    Conflicto en el cronograma: se han detectado fechas inconsistentes.
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5 text-red-300/90">
+                    {scheduleErrors.map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cierre de recepción de soluciones */}
-            <div className="rounded-xl border border-[#1A2845] bg-[#0D1527] p-5 space-y-3">
+            <div
+              className={`rounded-xl border bg-[#0D1527] p-5 space-y-3 transition ${submissionDateError ? "border-red-500/50" : "border-[#1A2845]"
+                }`}
+            >
               <div>
                 <h3 className="text-sm font-bold text-white">
                   Cierre de recepción de soluciones{" "}
@@ -909,16 +1006,28 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
               <div className="pt-2">
                 <input
                   type="datetime-local"
+                  min={minDateTime}
                   value={submissionDeadline}
                   onChange={(e) => setSubmissionDeadline(e.target.value)}
                   disabled={isSubDateDisabled}
-                  className="w-full rounded-xl border border-[#1E2D4A] bg-[#0A101D] px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`w-full rounded-xl border bg-[#0A101D] px-4 py-2.5 text-sm text-white focus:outline-none transition disabled:opacity-50 disabled:cursor-not-allowed ${submissionDateError
+                    ? "border-red-500/80 focus:border-red-500"
+                    : "border-[#1E2D4A] focus:border-orange-500"
+                    }`}
                 />
+                {submissionDateError && (
+                  <p className="mt-1.5 text-xs text-red-400 font-medium">
+                    {submissionDateError}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Publicación final y veredicto de jurado */}
-            <div className="rounded-xl border border-[#1A2845] bg-[#0D1527] p-5 space-y-3">
+            <div
+              className={`rounded-xl border bg-[#0D1527] p-5 space-y-3 transition ${votingDateError ? "border-red-500/50" : "border-[#1A2845]"
+                }`}
+            >
               <div>
                 <h3 className="text-sm font-bold text-white">
                   Publicación final y veredicto de jurado{" "}
@@ -933,11 +1042,20 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
               <div className="pt-2">
                 <input
                   type="datetime-local"
+                  min={submissionDeadline || minDateTime}
                   value={votingDeadline}
                   onChange={(e) => setVotingDeadline(e.target.value)}
                   disabled={isVoteDateDisabled}
-                  className="w-full rounded-xl border border-[#1E2D4A] bg-[#0A101D] px-4 py-2.5 text-sm text-white focus:border-orange-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`w-full rounded-xl border bg-[#0A101D] px-4 py-2.5 text-sm text-white focus:outline-none transition disabled:opacity-50 disabled:cursor-not-allowed ${votingDateError
+                    ? "border-red-500/80 focus:border-red-500"
+                    : "border-[#1E2D4A] focus:border-orange-500"
+                    }`}
                 />
+                {votingDateError && (
+                  <p className="mt-1.5 text-xs text-red-400 font-medium">
+                    {votingDateError}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -964,10 +1082,10 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
 
       {/* Error Alert from Server */}
       {errorMessage && (
-         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300 text-sm shadow-md animate-fadeIn">
-           <p className="font-semibold text-red-200">Error del servidor:</p>
-           <p className="mt-1 text-xs text-red-300/90">{errorMessage}</p>
-         </div>
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300 text-sm shadow-md animate-fadeIn">
+          <p className="font-semibold text-red-200">Error del servidor:</p>
+          <p className="mt-1 text-xs text-red-300/90">{errorMessage}</p>
+        </div>
       )}
 
       {/* FOOTER ACTION BAR */}

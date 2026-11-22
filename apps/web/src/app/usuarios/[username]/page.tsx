@@ -304,11 +304,10 @@ function UserProfileContent() {
             </button>
             {friendActionFeedback && (
               <div
-                className={`rounded-lg border p-2 text-xs font-medium ${
-                  friendActionFeedback.type === "success"
+                className={`rounded-lg border p-2 text-xs font-medium ${friendActionFeedback.type === "success"
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                     : "border-red-500/30 bg-red-500/10 text-red-300"
-                }`}
+                  }`}
               >
                 {friendActionFeedback.text}
               </div>
@@ -447,8 +446,8 @@ function UserProfileContent() {
                   aria-selected={activeTab === tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${activeTab === tab.id
-                      ? "bg-orange-500 text-white"
-                      : "text-slate-400 hover:bg-[#1A2640] hover:text-white"
+                    ? "bg-orange-500 text-white"
+                    : "text-slate-400 hover:bg-[#1A2640] hover:text-white"
                     }`}
                 >
                   {tab.label}
@@ -523,7 +522,7 @@ function UserProfileContent() {
               {activeTab === "notifications" && (
                 <div className="space-y-4">
                   {(!data.notifications || data.notifications.length === 0) &&
-                  (!data.receivedModInvitations || data.receivedModInvitations.length === 0) ? (
+                    (!data.receivedModInvitations || data.receivedModInvitations.length === 0) ? (
                     <EmptyTab message="No tienes notificaciones registradas." />
                   ) : (
                     <div className="space-y-3">
@@ -544,19 +543,18 @@ function UserProfileContent() {
                                 </p>
                               </div>
                               <span
-                                className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
-                                  inv.status === "PENDING"
+                                className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${inv.status === "PENDING"
                                     ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                                     : inv.status === "ACCEPTED"
-                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                                    : "bg-red-500/20 text-red-300 border border-red-500/30"
-                                }`}
+                                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                      : "bg-red-500/20 text-red-300 border border-red-500/30"
+                                  }`}
                               >
                                 {inv.status === "PENDING"
                                   ? "Pendiente"
                                   : inv.status === "ACCEPTED"
-                                  ? "Aceptada"
-                                  : "Rechazada"}
+                                    ? "Aceptada"
+                                    : "Rechazada"}
                               </span>
                             </div>
                           ))}
@@ -591,11 +589,10 @@ function UserProfileContent() {
                             {data.notifications.map((n) => (
                               <div
                                 key={n.id}
-                                className={`rounded-xl border p-3.5 text-xs flex items-center justify-between gap-3 transition ${
-                                  !n.isRead
+                                className={`rounded-xl border p-3.5 text-xs flex items-center justify-between gap-3 transition ${!n.isRead
                                     ? "border-orange-500/40 bg-[#121D32] shadow-sm"
                                     : "border-[#263652] bg-[#0A101D]"
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-center gap-3 min-w-0">
                                   {!n.isRead ? (
@@ -609,9 +606,8 @@ function UserProfileContent() {
                                     </p>
                                     <div className="flex items-center gap-2 mt-1">
                                       <span
-                                        className={`rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase ${
-                                          getNotificationTypeBadge(n.type).className
-                                        }`}
+                                        className={`rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase ${getNotificationTypeBadge(n.type).className
+                                          }`}
                                       >
                                         {getNotificationTypeBadge(n.type).label}
                                       </span>
