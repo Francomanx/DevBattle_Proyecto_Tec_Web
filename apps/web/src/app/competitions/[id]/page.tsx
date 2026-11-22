@@ -134,6 +134,33 @@ function CompetitionDetailContent() {
     enabled: Boolean(competitionId),
   });
 
+  const isVotingClosed = Boolean(
+    leaderboardData?.isVotingClosed ||
+    competition?.status === "COMPLETED" ||
+    (competition?.votingDeadline && new Date().getTime() >= new Date(competition.votingDeadline).getTime())
+  );
+
+  const rankMap = new Map(
+    leaderboardData?.leaderboard?.map((item) => [item.projectId, item]) ?? []
+  );
+
+  // Cuando las fechas culminen, los proyectos se ordenan por puntaje obtenido (TOP).
+  // Mientras la votación siga en curso, se ordenan cronológicamente (LIFO: más reciente primero).
+  const projectsStack = competition?.projects
+    ? [...competition.projects].sort((a, b) => {
+      if (isVotingClosed && rankMap.size > 0) {
+        const rankA = rankMap.get(a.id)?.rank ?? 999999;
+        const rankB = rankMap.get(b.id)?.rank ?? 999999;
+        if (rankA !== rankB) {
+          return rankA - rankB;
+        }
+      }
+      const timeA = new Date(a.submissionDate).getTime();
+      const timeB = new Date(b.submissionDate).getTime();
+      return timeB - timeA;
+    })
+    : [];
+
   if (isAuthLoading || isLoading) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-16 text-center">
@@ -382,11 +409,196 @@ function CompetitionDetailContent() {
             <span className="text-xs text-slate-500 font-mono">ID: {competition.id}</span>
           </div>
 
-          {/* GRID LAYOUT: 2 columnas (Izquierda: detalles | Derecha: panel de participación) */}
-          <div className={`grid grid-cols-1 gap-6 ${showParticipationOption ? "lg:grid-cols-3" : ""}`}>
+          {/* GRID LAYOUT: Lateral Izquierdo (Pila de Proyectos) y Columna Principal */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-            {/* COLUMNA IZQUIERDA (Info principal) */}
-            <div className={`${showParticipationOption ? "lg:col-span-2" : ""} space-y-6 min-w-0`}>
+            {/* LATERAL IZQUIERDO: Proyectos postulados ordenados como una pila (LIFO) */}
+            <aside className="order-2 lg:order-1 lg:col-span-4 space-y-6">
+              {showParticipationOption && (
+                <SubmitProjectForm
+                  competitionId={competition.id}
+                  competitionStatus={competition.status}
+                  fileFormats={competition.fileFormat || "link"}
+                  hasUserAlreadySubmitted={false}
+                  isDev={isDev}
+                  onSuccessSubmit={() => refetch()}
+                />
+              )}
+
+              <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-5 shadow-lg space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E2D4A] pb-3">
+                  <div>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                      {isVotingClosed ? "Tabla de posiciones y proyectos" : "Proyectos postulados"}
+                    </h2>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {isVotingClosed
+                        ? "Ordenados por puntaje oficial (TOP)"
+                        : "Pila de entregas (más recientes arriba)"}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-bold border ${isVotingClosed
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                      : "bg-orange-500/20 text-orange-300 border-orange-500/30"
+                      }`}
+                  >
+                    {isVotingClosed
+                      ? "TOP oficial"
+                      : projectsStack.length === 1
+                        ? "1 entrega"
+                        : `${projectsStack.length} entregas`}
+                  </span>
+                </div>
+
+                {projectsStack.length > 0 ? (
+                  <div
+                    className={`space-y-3 ${projectsStack.length > 5
+                      ? "max-h-[740px] overflow-y-auto pr-1.5 custom-scrollbar"
+                      : ""
+                      }`}
+                  >
+                    {projectsStack.map((prj, index) => {
+                      const rankItem = isVotingClosed ? rankMap.get(prj.id) : null;
+                      const isTop = isVotingClosed ? rankItem?.rank === 1 : index === 0;
+                      return (
+                        <div
+                          key={prj.id}
+                          className={`flex flex-col justify-between rounded-xl border p-3.5 transition space-y-2.5 ${isTop
+                            ? "border-orange-500/40 bg-[#0E1729] shadow-md shadow-orange-950/20 hover:border-orange-500/60"
+                            : "border-[#1E2D4A] bg-[#0A101D] hover:border-[#2B3F67] hover:bg-[#0E1627]"
+                            }`}
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              {isVotingClosed && rankItem ? (
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`rounded px-1.5 py-0.5 text-[10px] font-mono font-bold ${rankItem.rank === 1
+                                      ? "bg-amber-400 text-slate-900"
+                                      : rankItem.rank === 2
+                                        ? "bg-slate-300 text-slate-900"
+                                        : rankItem.rank === 3
+                                          ? "bg-amber-700 text-white"
+                                          : "bg-[#16233B] text-slate-300 border border-[#23355A]"
+                                      }`}
+                                  >
+                                    Puesto #{rankItem.rank}
+                                  </span>
+                                  <span className="font-mono text-xs font-bold text-orange-400">
+                                    {rankItem.scoreOutOf100.toFixed(1)} pts
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-mono">
+                                    ({rankItem.scoreOutOf5.toFixed(2)}/5)
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  {new Date(prj.submissionDate).toLocaleDateString("es-ES", {
+                                    day: "2-digit",
+                                    month: "short",
+                                  })}
+                                </span>
+                              )}
+
+                              {isVotingClosed && !rankItem && (
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  Sin calificar
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-start justify-between gap-2">
+                              <Link
+                                href={`/proyecto/${prj.id}`}
+                                className="font-bold text-xs text-white hover:text-orange-400 transition line-clamp-1"
+                              >
+                                {prj.title}
+                              </Link>
+                              {prj.isDisqualified && (
+                                <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[9px] font-bold text-red-300 border border-red-500/30 shrink-0">
+                                  Descalificado
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                              {prj.description}
+                            </p>
+                          </div>
+
+                          <div className="pt-2 border-t border-[#16233B] flex items-center justify-between text-[11px]">
+                            <div className="flex items-center gap-1.5 truncate mr-2">
+                              <span className="text-slate-500 text-[10px]">Por:</span>
+                              <Link
+                                href={`/usuarios/${encodeURIComponent(prj.author.username)}`}
+                                className="font-semibold text-orange-400 hover:text-orange-300 truncate"
+                              >
+                                @{prj.author.username}
+                              </Link>
+                            </div>
+                            <Link
+                              href={`/proyecto/${prj.id}`}
+                              className="rounded-lg bg-[#152238] border border-[#23355A] px-2 py-0.5 text-[10px] font-semibold text-slate-200 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition shrink-0"
+                            >
+                              Ver proyecto
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-[#1A2845] bg-[#0A101D] p-5 text-center text-xs text-slate-400">
+                    Aún no se han enviado proyectos para esta competencia.
+                  </div>
+                )}
+
+                {/* Información de fechas y estado de la votación */}
+                <div className="pt-3 border-t border-[#1E2D4A] space-y-2">
+                  {!isVotingClosed ? (
+                    <div className="rounded-xl border border-[#1A2845] bg-[#0A101D] p-3 text-center space-y-1.5">
+                      <p className="text-[11px] font-semibold text-white">
+                        El TOP oficial se publicará al culminar la votación
+                      </p>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                        Las evaluaciones y notas ponderadas se calcularán automáticamente tras finalizar el certamen.
+                      </p>
+                      <div className="flex items-center justify-center gap-1.5 text-[11px] font-mono text-slate-300 pt-0.5">
+                        <span className="text-slate-500 text-[10px]">Fecha límite:</span>
+                        <span className="font-bold text-orange-400">
+                          {new Date(competition.votingDeadline).toLocaleString("es-ES", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-emerald-500/20 bg-[#0A101D] p-3 text-center space-y-1.5">
+                      <p className="text-[11px] font-semibold text-emerald-300">
+                        Resultados y TOP oficiales calculados
+                      </p>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                        Evaluación concluida. Proyectos ordenados por nota ponderada final.
+                      </p>
+                      <div className="flex items-center justify-center gap-1.5 text-[11px] font-mono text-slate-300 pt-0.5">
+                        <span className="text-slate-500 text-[10px]">Finalizado el:</span>
+                        <span className="font-bold text-emerald-400">
+                          {new Date(competition.votingDeadline).toLocaleString("es-ES", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </aside>
+
+            {/* COLUMNA PRINCIPAL / DERECHA (Detalles de la competencia) */}
+            <div className="order-1 lg:order-2 lg:col-span-8 space-y-6 min-w-0">
 
               {/* Main Banner Card */}
               <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 sm:p-8 shadow-xl space-y-4">
@@ -815,7 +1027,7 @@ function CompetitionDetailContent() {
               {/* Section 1: Base Description */}
               <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-3 min-w-0 max-w-full overflow-hidden">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-[#1E2D4A] pb-2">
-                  1. Descripción y contexto del problema
+                  Descripción y contexto del problema
                 </h2>
                 <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word] pt-1">
                   {competition.description}
@@ -825,7 +1037,7 @@ function CompetitionDetailContent() {
               {/* Section 2: Rules & Delivery Format */}
               <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-4">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-[#1E2D4A] pb-2">
-                  2. Reglas y formato de recepción
+                  Reglas y formato de recepción
                 </h2>
 
                 <div className="space-y-3">
@@ -860,7 +1072,7 @@ function CompetitionDetailContent() {
               <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E2D4A] pb-3">
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    3. Rúbrica y métricas de evaluación ({competition.metrics.length})
+                    Rúbrica y métricas de evaluación ({competition.metrics.length})
                   </h2>
                   <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-bold text-emerald-300 border border-emerald-500/30">
                     {totalWeight}% Ponderado Total
@@ -931,7 +1143,7 @@ function CompetitionDetailContent() {
               {/* Section 4: Cronograma y Fechas */}
               <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-4">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-[#1E2D4A] pb-2">
-                  4. Cronograma y fechas límite
+                  Cronograma y fechas límite
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
@@ -956,121 +1168,7 @@ function CompetitionDetailContent() {
                   </div>
                 </div>
               </div>
-
-              {/* Section 5: Leaderboard / Tabla de Posiciones */}
-              <div className="rounded-2xl border border-[#1E2D4A] bg-[#111A2E] p-6 shadow-lg space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1E2D4A] pb-3">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                      5. Tabla de posiciones y TOP de participantes
-                    </h2>
-                  </div>
-                  {leaderboardData && !leaderboardData.isVotingClosed ? (
-                    <span className="rounded-full bg-blue-500/20 px-2.5 py-0.5 text-xs font-bold text-blue-300 border border-blue-500/30">
-                      Votación en curso (TOP no disponible)
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-bold text-emerald-300 border border-emerald-500/30">
-                      Resultados oficiales (Votación finalizada)
-                    </span>
-                  )}
-                </div>
-
-                {leaderboardData && !leaderboardData.isVotingClosed ? (
-                  <div className="rounded-xl border border-[#1A2845] bg-[#0A101D] p-6 text-center space-y-3">
-                    <p className="text-sm font-semibold text-white">
-                      El cálculo de puntajes y el TOP oficial se publicarán al finalizar la votación
-                    </p>
-                    <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
-                      Las competencias que aún no llegan a su fin no pueden contar con un TOP. Las evaluaciones y calificaciones ponderadas se calcularán de forma automática una vez concluida la fecha límite de votación.
-                    </p>
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-[#0E1627] border border-[#16233B] px-3.5 py-2 text-xs text-slate-300 font-mono">
-                      <span>Fecha límite de votación:</span>
-                      <span className="font-bold text-orange-400">
-                        {new Date(competition.votingDeadline).toLocaleString("es-ES", {
-                          dateStyle: "full",
-                          timeStyle: "short",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                ) : leaderboardData && leaderboardData.leaderboard.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-white">
-                      <thead className="bg-[#0A101D] text-slate-400 uppercase tracking-wider text-[11px]">
-                        <tr>
-                          <th className="px-4 py-3 rounded-l-lg">Puesto</th>
-                          <th className="px-4 py-3">Participante / Proyecto</th>
-                          <th className="px-4 py-3 text-right">Nota (1 a 5)</th>
-                          <th className="px-4 py-3 text-right">Puntaje Final</th>
-                          <th className="px-4 py-3 text-right rounded-r-lg">Entregado</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#1A2845]">
-                        {leaderboardData.leaderboard.map((item) => (
-                          <tr key={item.projectId} className="hover:bg-[#0D1527] transition">
-                            <td className="px-4 py-3 font-bold">
-                              <span
-                                className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-extrabold ${item.rank === 1
-                                  ? "bg-amber-400 text-slate-900 shadow"
-                                  : item.rank === 2
-                                    ? "bg-slate-300 text-slate-900"
-                                    : item.rank === 3
-                                      ? "bg-amber-700 text-white"
-                                      : "bg-slate-800 text-slate-300"
-                                  }`}
-                              >
-                                {item.rank}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col">
-                                <span className="font-semibold text-white">{item.title}</span>
-                                <Link
-                                  href={`/usuarios/${encodeURIComponent(item.author.username)}`}
-                                  className="text-[11px] text-orange-400 hover:text-orange-300"
-                                >
-                                  @{item.author.username}
-                                </Link>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right font-mono text-slate-300">
-                              {item.scoreOutOf5.toFixed(2)} / 5
-                            </td>
-                            <td className="px-4 py-3 text-right font-mono font-bold text-orange-400">
-                              {item.scoreOutOf100.toFixed(1)} pts
-                            </td>
-                            <td className="px-4 py-3 text-right text-slate-400 text-[11px]">
-                              {new Date(item.submissionDate).toLocaleDateString("es-ES")}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-[#1A2845] bg-[#0A101D] p-6 text-center text-xs text-slate-400">
-                    La competencia ha finalizado, pero no se registraron proyectos evaluados para generar el ranking.
-                  </div>
-                )}
-              </div>
             </div>
-
-            {/* COLUMNA DERECHA (Panel de Participación) */}
-            {showParticipationOption && (
-              <div className="lg:col-span-1">
-                <div className="sticky top-6">
-                  <SubmitProjectForm
-                    competitionId={competition.id}
-                    competitionStatus={competition.status}
-                    fileFormats={competition.fileFormat || "link"}
-                    hasUserAlreadySubmitted={false}
-                    isDev={isDev}
-                    onSuccessSubmit={() => refetch()}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </>
       )}
