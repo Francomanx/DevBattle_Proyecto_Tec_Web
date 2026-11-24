@@ -242,12 +242,12 @@ export function ProfileEditModal({
             </label>
 
             {profileError && (
-              <p role="alert" className="text-sm text-red-300">
+              <p role="alert" className="text-sm text-red-300 break-words">
                 {profileError}
               </p>
             )}
             {profileSuccess && (
-              <p role="status" className="text-sm text-emerald-300">
+              <p role="status" className="text-sm text-emerald-300 break-words">
                 {profileSuccess}
               </p>
             )}
@@ -317,12 +317,12 @@ export function ProfileEditModal({
             </label>
 
             {securityError && (
-              <p role="alert" className="text-sm text-red-300">
+              <p role="alert" className="text-sm text-red-300 break-words">
                 {securityError}
               </p>
             )}
             {securitySuccess && (
-              <p role="status" className="text-sm text-emerald-300">
+              <p role="status" className="text-sm text-emerald-300 break-words">
                 {securitySuccess}
               </p>
             )}

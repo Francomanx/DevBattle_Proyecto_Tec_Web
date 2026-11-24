@@ -19,12 +19,20 @@
   }
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+}
+
 body {
   min-height: 100vh;
   margin: 0;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  overflow-wrap: break-word;
 }
 
 /* Pantalla de inicio de sesión y registro */
@@ -282,6 +290,8 @@ body {
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.5;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .form-error {
@@ -381,6 +391,10 @@ body {
 .account-name {
   color: #f8fafc;
   font-weight: 650;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quiet-button {

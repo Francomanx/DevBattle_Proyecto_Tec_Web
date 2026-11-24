@@ -167,17 +167,17 @@ export function CompetitionGrid() {
               >
                 <div>
                   {/* Card Header: Host & Status */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#24334E] text-slate-300 font-bold text-xs shadow-inner">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#24334E] text-slate-300 font-bold text-xs shadow-inner">
                         {host ? host.user.username.slice(0, 2).toUpperCase() : ""}
                       </div>
-                      <span className="text-xs font-semibold text-white">
+                      <span className="text-xs font-semibold text-white truncate">
                         {hostName}
                       </span>
                     </div>
 
-                    <span className={`text-xs font-semibold ${statusColor}`}>
+                    <span className={`text-xs font-semibold shrink-0 ${statusColor}`}>
                       {statusLabel}
                     </span>
                   </div>
@@ -206,12 +206,12 @@ export function CompetitionGrid() {
                   {/* Title & Description */}
                   <Link
                     href={`/competitions/${competition.id}`}
-                    className="block text-sm font-bold text-white hover:text-orange-400 transition line-clamp-1 mt-1"
+                    className="block text-sm font-bold text-white hover:text-orange-400 transition line-clamp-1 mt-1 break-words"
                   >
                     {competition.title}
                   </Link>
 
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-2 min-h-[32px] leading-relaxed">
+                  <p className="text-xs text-slate-400 mt-1 line-clamp-2 min-h-[32px] leading-relaxed break-words">
                     {competition.description}
                   </p>
 

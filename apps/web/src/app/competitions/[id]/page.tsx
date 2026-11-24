@@ -511,7 +511,7 @@ function CompetitionDetailContent() {
                             <div className="flex items-start justify-between gap-2">
                               <Link
                                 href={`/proyecto/${prj.id}`}
-                                className="font-bold text-xs text-white hover:text-orange-400 transition line-clamp-1"
+                                className="font-bold text-xs text-white hover:text-orange-400 transition line-clamp-1 break-words"
                               >
                                 {prj.title}
                               </Link>
@@ -522,14 +522,14 @@ function CompetitionDetailContent() {
                               )}
                             </div>
 
-                            <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                            <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed break-words [overflow-wrap:anywhere]">
                               {prj.description}
                             </p>
                           </div>
 
                           <div className="pt-2 border-t border-[#16233B] flex items-center justify-between text-[11px]">
-                            <div className="flex items-center gap-1.5 truncate mr-2">
-                              <span className="text-slate-500 text-[10px]">Por:</span>
+                            <div className="flex items-center gap-1.5 truncate min-w-0 flex-1 mr-2">
+                              <span className="text-slate-500 text-[10px] shrink-0">Por:</span>
                               <Link
                                 href={`/usuarios/${encodeURIComponent(prj.author.username)}`}
                                 className="font-semibold text-orange-400 hover:text-orange-300 truncate"
@@ -664,8 +664,8 @@ function CompetitionDetailContent() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white break-words [overflow-wrap:anywhere] min-w-0 flex-1">
                     {competition.title}
                   </h1>
 
@@ -1054,7 +1054,7 @@ function CompetitionDetailContent() {
                 <div className="space-y-3">
                   <div>
                     <h3 className="text-xs font-semibold text-slate-400">Reglas y restricciones:</h3>
-                    <p className="mt-1 text-sm text-slate-300 whitespace-pre-wrap bg-[#0A101D] p-3.5 rounded-xl border border-[#1E2D4A]">
+                    <p className="mt-1 text-sm text-slate-300 whitespace-pre-wrap break-words [overflow-wrap:anywhere] bg-[#0A101D] p-3.5 rounded-xl border border-[#1E2D4A]">
                       {competition.rules}
                     </p>
                   </div>

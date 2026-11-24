@@ -31,9 +31,9 @@ export function ChallengeList() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center text-red-300">
+      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center text-red-300 break-words">
         <p className="font-semibold">No se pudo conectar con la API:</p>
-        <p className="text-sm mt-1 text-red-400">{error.message}</p>
+        <p className="text-sm mt-1 text-red-400 break-words">{error.message}</p>
       </div>
     );
   }

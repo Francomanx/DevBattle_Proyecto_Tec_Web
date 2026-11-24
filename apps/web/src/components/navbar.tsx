@@ -70,8 +70,8 @@ export function Navbar() {
                     .join("")
                     .slice(0, 2)}
                 </div>
-                <div className="hidden sm:block">
-                  <p className="text-sm font-semibold leading-tight text-white">
+                <div className="hidden sm:block min-w-0">
+                  <p className="text-sm font-semibold leading-tight text-white max-w-[140px] truncate">
                     {user.name}
                   </p>
                   <p className="text-xs text-slate-400">Perfil</p>
@@ -80,7 +80,7 @@ export function Navbar() {
 
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[#1E2D4A] bg-[#111A2E] p-2 shadow-xl z-50">
-                  <div className="px-3 py-2 border-b border-[#1E2D4A] mb-1">
+                  <div className="px-3 py-2 border-b border-[#1E2D4A] mb-1 min-w-0">
                     {/* para mostrar el perfil del usuario, se utiliza un link que redirige a la pagina de perfil del usuario */}
                     <Link
                       href={`/usuarios/${encodeURIComponent(user.username)}`}
@@ -89,7 +89,7 @@ export function Navbar() {
                     >
                       Ver mi perfil
                     </Link>
-                    <p className="text-xs text-slate-400">@{user.username}</p>
+                    <p className="text-xs text-slate-400 truncate">@{user.username}</p>
                   </div>
                   <Link
                     href={`/usuarios/${encodeURIComponent(user.username)}?tab=notifications`}

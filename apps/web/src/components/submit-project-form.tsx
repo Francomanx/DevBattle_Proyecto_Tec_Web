@@ -269,8 +269,8 @@ export function SubmitProjectForm({
               </label>
             </div>
             {fileInput && (
-              <p className="mt-2 text-xs text-emerald-400 text-center font-medium">
-                📄 Archivo seleccionado: {fileInput.name}
+              <p className="mt-2 text-xs text-emerald-400 text-center font-medium break-all px-2">
+                Archivo seleccionado: {fileInput.name}
               </p>
             )}
           </div>
@@ -279,7 +279,7 @@ export function SubmitProjectForm({
         {/* Mensaje de Error */}
         {(errorMessage || (hasAttemptedSubmit && description.trim().length < 200)) && (
           <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3">
-            <p className="text-xs text-red-400 font-medium">
+            <p className="text-xs text-red-400 font-medium break-words">
               {errorMessage || "Faltan campos por completar correctamente."}
             </p>
           </div>

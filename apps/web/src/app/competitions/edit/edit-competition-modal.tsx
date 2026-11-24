@@ -133,7 +133,7 @@ function EditCompetitionModalContent({
         </div>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/40 text-red-300 p-3 rounded-lg text-sm">
+          <div className="bg-red-500/10 border border-red-500/40 text-red-300 p-3 rounded-lg text-sm break-words">
             {error}
           </div>
         )}

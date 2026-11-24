@@ -34,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <TRPCReactProvider>
           <AuthProvider>
             <Navbar />
-            <div className="flex-1">{children}</div>
+            <div className="flex-1 w-full min-w-0">{children}</div>
             <ChatWidget />
             <Footer />
           </AuthProvider>

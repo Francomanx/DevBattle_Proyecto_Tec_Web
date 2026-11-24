@@ -97,8 +97,8 @@ export function VoteProjectForm({
 
               return (
                 <div key={metric.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-[#0A101D] p-3 border border-[#1A2845]">
-                  <span className="text-sm font-medium text-slate-300">{metric.name}</span>
-                  <div className="flex gap-1">
+                  <span className="text-sm font-medium text-slate-300 min-w-0 flex-1 mr-2 break-words">{metric.name}</span>
+                  <div className="flex gap-1 shrink-0">
                     {[1, 2, 3, 4, 5].map((val) => (
                       <div
                         key={val}
@@ -117,7 +117,7 @@ export function VoteProjectForm({
             })}
           </div>
           <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-center">
-            <p className="text-sm font-semibold text-emerald-400">
+            <p className="text-sm font-semibold text-emerald-400 break-words">
               {successMessage || "Ya has votado por este proyecto."}
             </p>
           </div>
@@ -172,8 +172,8 @@ export function VoteProjectForm({
         <div className="grid gap-3">
           {metrics.map((metric) => (
             <div key={metric.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-[#0A101D] p-3 border border-[#1A2845] transition hover:border-[#283C63]">
-              <span className="text-sm font-medium text-white">{metric.name}</span>
-              <div className="flex gap-1.5">
+              <span className="text-sm font-medium text-white min-w-0 flex-1 mr-2 break-words">{metric.name}</span>
+              <div className="flex gap-1.5 shrink-0">
                 {[1, 2, 3, 4, 5].map((val) => {
                   const isSelected = scores[metric.id] === val;
                   return (
@@ -197,7 +197,7 @@ export function VoteProjectForm({
         </div>
 
         {errorMessage && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
+          <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300 break-words">
             {errorMessage}
           </div>
         )}

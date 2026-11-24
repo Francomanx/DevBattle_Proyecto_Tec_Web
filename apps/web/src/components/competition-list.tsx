@@ -48,12 +48,12 @@ export function CompetitionList() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
               href={`/competitions/${competition.id}`}
-              className="text-xl font-bold tracking-tight text-white hover:text-orange-400 transition"
+              className="text-xl font-bold tracking-tight text-white hover:text-orange-400 transition min-w-0 flex-1 break-words"
             >
               {competition.title}
             </Link>
             <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              className={`rounded-full px-3 py-1 text-xs font-semibold shrink-0 ${
                 statusBadges[competition.status] ?? statusBadges.ACTIVE
               }`}
             >
@@ -61,11 +61,11 @@ export function CompetitionList() {
             </span>
           </div>
 
-          <p className="mt-3 text-sm text-slate-300 line-clamp-3">
+          <p className="mt-3 text-sm text-slate-300 line-clamp-3 break-words">
             {competition.description}
           </p>
 
-          <div className="mt-4 rounded-xl bg-[#0A101D] border border-[#1A2640] p-3 text-xs text-slate-400">
+          <div className="mt-4 rounded-xl bg-[#0A101D] border border-[#1A2640] p-3 text-xs text-slate-400 break-words">
             <span className="font-semibold text-slate-200">Reglas: </span>
             {competition.rules}
           </div>

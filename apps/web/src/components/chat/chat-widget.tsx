@@ -290,21 +290,21 @@ function ChatWidgetContent({ user }: { user: UserSession }) {
       {isOpen && (
         <div className="flex h-[520px] w-88 sm:w-96 flex-col overflow-hidden rounded-2xl border border-[#1E2D4A] bg-[#0E1626] shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[#1E2D4A] bg-[#111A2E] px-4 py-3">
+          <div className="flex items-center justify-between border-b border-[#1E2D4A] bg-[#111A2E] px-4 py-3 gap-2">
             {activeFriend ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => setActiveFriend(null)}
-                  className="rounded-lg p-1 text-slate-400 hover:bg-[#1A2640] hover:text-white"
+                  className="rounded-lg p-1 text-slate-400 hover:bg-[#1A2640] hover:text-white shrink-0"
                   title="Volver a lista de amigos"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-white">@{activeFriend.username}</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-bold text-white truncate">@{activeFriend.username}</span>
                   <span className="text-[11px] font-medium text-emerald-400">Activo</span>
                 </div>
               </div>
@@ -320,7 +320,7 @@ function ChatWidgetContent({ user }: { user: UserSession }) {
                 setIsOpen(false);
                 setActiveFriend(null);
               }}
-              className="rounded-lg p-1 text-slate-400 hover:bg-[#1A2640] hover:text-white text-sm font-bold"
+              className="rounded-lg p-1 text-slate-400 hover:bg-[#1A2640] hover:text-white text-sm font-bold shrink-0"
               title="Cerrar mensajería"
             >
               x
@@ -346,12 +346,12 @@ function ChatWidgetContent({ user }: { user: UserSession }) {
                         className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
                       >
                         <div
-                          className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-white shadow-sm ${isMe
+                          className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-white shadow-sm break-words [overflow-wrap:anywhere] ${isMe
                             ? "bg-[#FF6B00] text-white rounded-br-none"
                             : "bg-[#1A2640] text-slate-100 rounded-bl-none border border-[#23355A]"
                             }`}
                         >
-                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.content}</p>
                         </div>
                         <span className="mt-1 px-1 text-[10px] text-slate-500">
                           {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -465,7 +465,7 @@ function ChatWidgetContent({ user }: { user: UserSession }) {
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1E2D4A] text-xs font-bold text-white">
                             {friend.username.slice(0, 2).toUpperCase()}
                           </div>
-                          <div className="flex-1 overflow-hidden">
+                          <div className="flex-1 min-w-0 overflow-hidden">
                             <p className="truncate text-xs font-bold text-white">@{friend.username}</p>
                             <p className="truncate text-[11px] text-slate-400">
                               {friend.lastMessage?.content ?? "Sin mensajes aún. Haz clic para chatear."}
@@ -516,7 +516,7 @@ function ChatWidgetContent({ user }: { user: UserSession }) {
 
                       {addFeedback && (
                         <div
-                          className={`rounded-lg border p-2 text-[11px] ${addFeedback.type === "success"
+                          className={`rounded-lg border p-2 text-[11px] break-words [overflow-wrap:anywhere] ${addFeedback.type === "success"
                             ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
                             : "border-red-500/30 bg-red-500/10 text-red-300"
                             }`}
@@ -547,15 +547,15 @@ function ChatWidgetContent({ user }: { user: UserSession }) {
                           requests.incoming.map((req) => (
                             <div
                               key={req.id}
-                              className="mb-2 flex items-center justify-between rounded-xl border border-[#1E2D4A] bg-[#111A2E] p-2.5"
+                              className="mb-2 flex items-center justify-between rounded-xl border border-[#1E2D4A] bg-[#111A2E] p-2.5 gap-2"
                             >
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1E2D4A] text-[11px] font-bold text-white">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1E2D4A] text-[11px] font-bold text-white">
                                   {req.username.slice(0, 2).toUpperCase()}
                                 </div>
-                                <span className="font-bold text-white">@{req.username}</span>
+                                <span className="font-bold text-white truncate">@{req.username}</span>
                               </div>
-                              <div className="flex gap-1.5">
+                              <div className="flex gap-1.5 shrink-0">
                                 <button
                                   type="button"
                                   onClick={() => handleRespondRequest(req.id, "ACCEPT")}
@@ -589,15 +589,15 @@ function ChatWidgetContent({ user }: { user: UserSession }) {
                           requests.outgoing.map((req) => (
                             <div
                               key={req.id}
-                              className="mb-2 flex items-center justify-between rounded-xl border border-[#1E2D4A] bg-[#111A2E] p-2.5 text-slate-300"
+                              className="mb-2 flex items-center justify-between rounded-xl border border-[#1E2D4A] bg-[#111A2E] p-2.5 text-slate-300 gap-2"
                             >
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1E2D4A] text-[11px] font-bold text-white">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1E2D4A] text-[11px] font-bold text-white">
                                   {req.username.slice(0, 2).toUpperCase()}
                                 </div>
-                                <span>@{req.username}</span>
+                                <span className="truncate">@{req.username}</span>
                               </div>
-                              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400 border border-amber-500/20">
+                              <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400 border border-amber-500/20">
                                 Pendiente
                               </span>
                             </div>

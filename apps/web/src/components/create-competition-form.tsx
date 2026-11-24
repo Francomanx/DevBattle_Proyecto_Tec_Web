@@ -1080,7 +1080,7 @@ export function CreateCompetitionForm() {
                   </p>
                   <ul className="list-disc list-inside space-y-0.5 text-red-300/90">
                     {scheduleErrors.map((err, i) => (
-                      <li key={i}>{err}</li>
+                      <li key={i} className="break-words">{err}</li>
                     ))}
                   </ul>
                 </div>
@@ -1173,7 +1173,7 @@ export function CreateCompetitionForm() {
               </p>
               <ul className="mt-2 list-disc list-inside space-y-1 text-xs text-red-300/90">
                 {validationErrors.map((err, i) => (
-                  <li key={i}>{err}</li>
+                  <li key={i} className="break-words">{err}</li>
                 ))}
               </ul>
             </div>
@@ -1203,7 +1203,7 @@ export function CreateCompetitionForm() {
         </div>
 
         {errorMessage && (
-          <div className="w-full rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300">
+          <div className="w-full rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-300 break-words">
             {errorMessage}
           </div>
         )}

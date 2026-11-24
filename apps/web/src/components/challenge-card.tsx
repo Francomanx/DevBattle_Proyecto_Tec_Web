@@ -73,15 +73,15 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
   return (
     <div className="flex flex-col rounded-md border border-[#455b7a] bg-[#263245] p-5 shadow-md">
       {/* Cabecera: Host + estado */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded bg-zinc-600 flex items-center justify-center font-bold text-white text-xs uppercase">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+          <div className="h-9 w-9 shrink-0 rounded bg-zinc-600 flex items-center justify-center font-bold text-white text-xs uppercase">
             {challenge.host.slice(0, 2)}
           </div>
-          <span className="text-sm font-semibold text-white">{challenge.host}</span>
+          <span className="text-sm font-semibold text-white truncate">{challenge.host}</span>
         </div>
         <span
-          className={`rounded px-2 py-1 text-xs font-semibold ${
+          className={`shrink-0 rounded px-2 py-1 text-xs font-semibold ${
             statusColors[challenge.status]
           }`}
         >
@@ -118,8 +118,8 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
       </div>
 
       {/* Info del reto */}
-      <h2 className="text-lg font-bold text-white">{challenge.title}</h2>
-      <p className="mt-1 text-sm text-zinc-400 line-clamp-2">
+      <h2 className="text-lg font-bold text-white break-words line-clamp-2">{challenge.title}</h2>
+      <p className="mt-1 text-sm text-zinc-400 line-clamp-2 break-words">
         {challenge.description}
       </p>
 
@@ -129,7 +129,7 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
           challenge.tags.map((tag) => (
             <span
               key={tag}
-              className="border border-[#455b7a] bg-[#161B28] px-2 py-0.5 text-xs text-zinc-300 rounded"
+              className="border border-[#455b7a] bg-[#161B28] px-2 py-0.5 text-xs text-zinc-300 rounded max-w-full truncate"
             >
               {tag}
             </span>

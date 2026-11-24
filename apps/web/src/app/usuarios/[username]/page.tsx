@@ -251,11 +251,11 @@ function UserProfileContent() {
           {data.user.username.slice(0, 1).toUpperCase()}
         </div>
 
-        <h1 className="mt-4 text-center text-xl font-bold text-white">
+        <h1 className="mt-4 text-center text-xl font-bold text-white break-words [overflow-wrap:anywhere]">
           @{data.user.username}
         </h1>
 
-        <p className="mt-4 whitespace-pre-wrap text-sm text-slate-300">
+        <p className="mt-4 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm text-slate-300">
           {data.user.description?.trim() || "Sin descripción"}
         </p>
 
@@ -364,16 +364,16 @@ function UserProfileContent() {
               {pendingInvitations.map((inv) => (
                 <div
                   key={inv.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#1E2D4A] bg-[#0A101D] p-4"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-[#1E2D4A] bg-[#0A101D] p-4 min-w-0"
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0 flex-1">
                     <Link
                       href={`/competitions/${inv.competition.id}`}
-                      className="font-bold text-white hover:text-orange-400 text-sm transition"
+                      className="font-bold text-white hover:text-orange-400 text-sm transition break-words block"
                     >
                       {inv.competition.title}
                     </Link>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-400 break-words">
                       Invitado por:{" "}
                       <Link
                         href={`/usuarios/${encodeURIComponent(inv.inviter.username)}`}
@@ -504,10 +504,10 @@ function UserProfileContent() {
                     <Link
                       key={project.id}
                       href={`/proyecto/${project.id}`}
-                      className="block rounded-xl border border-[#263652] p-4 transition hover:border-orange-500/50 hover:bg-[#0D1527]"
+                      className="block rounded-xl border border-[#263652] p-4 transition hover:border-orange-500/50 hover:bg-[#0D1527] min-w-0"
                     >
-                      <p className="font-semibold text-white">{project.title}</p>
-                      <p className="mt-1 text-xs text-slate-400">
+                      <p className="font-semibold text-white break-words">{project.title}</p>
+                      <p className="mt-1 text-xs text-slate-400 break-words">
                         Competencia: {project.competitionTitle}
                       </p>
                       <p className="mt-2 text-xs text-orange-300">
@@ -532,18 +532,18 @@ function UserProfileContent() {
                           {data.receivedModInvitations.map((inv) => (
                             <div
                               key={inv.id}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#263652] bg-[#0A101D] p-3 text-xs"
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#263652] bg-[#0A101D] p-3 text-xs min-w-0"
                             >
-                              <div className="space-y-0.5">
-                                <p className="text-white font-medium">
+                              <div className="space-y-0.5 min-w-0 flex-1">
+                                <p className="text-white font-medium break-words">
                                   Invitación a moderar: <strong className="text-orange-400">{inv.competition.title}</strong>
                                 </p>
-                                <p className="text-[11px] text-slate-400">
+                                <p className="text-[11px] text-slate-400 truncate">
                                   Por @{inv.inviter.username} · {new Date(inv.createdAt).toLocaleDateString("es-ES")}
                                 </p>
                               </div>
                               <span
-                                className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${inv.status === "PENDING"
+                                className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase shrink-0 ${inv.status === "PENDING"
                                     ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                                     : inv.status === "ACCEPTED"
                                       ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
@@ -589,19 +589,19 @@ function UserProfileContent() {
                             {data.notifications.map((n) => (
                               <div
                                 key={n.id}
-                                className={`rounded-xl border p-3.5 text-xs flex items-center justify-between gap-3 transition ${!n.isRead
+                                className={`rounded-xl border p-3.5 text-xs flex items-center justify-between gap-3 transition min-w-0 ${!n.isRead
                                     ? "border-orange-500/40 bg-[#121D32] shadow-sm"
                                     : "border-[#263652] bg-[#0A101D]"
                                   }`}
                               >
-                                <div className="flex items-center gap-3 min-w-0">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
                                   {!n.isRead ? (
                                     <span className="h-2 w-2 rounded-full bg-[#FF6B00] shrink-0" />
                                   ) : (
                                     <span className="h-2 w-2 rounded-full bg-slate-600 shrink-0" />
                                   )}
-                                  <div className="min-w-0">
-                                    <p className={`${!n.isRead ? "text-white font-medium" : "text-slate-300"}`}>
+                                  <div className="min-w-0 flex-1">
+                                    <p className={`break-words [overflow-wrap:anywhere] ${!n.isRead ? "text-white font-medium" : "text-slate-300"}`}>
                                       {n.content}
                                     </p>
                                     <div className="flex items-center gap-2 mt-1">
@@ -706,11 +706,11 @@ function CompetitionRow({
   return (
     <Link
       href={`/competitions/${id}`}
-      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#263652] p-4 transition hover:border-orange-500/50 hover:bg-[#0D1527]"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#263652] p-4 transition hover:border-orange-500/50 hover:bg-[#0D1527] min-w-0"
     >
-      <span className="font-semibold text-white">{title}</span>
+      <span className="font-semibold text-white break-words min-w-0 flex-1 mr-2">{title}</span>
       <span
-        className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status] ?? "border-slate-600 text-slate-300"
+        className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles[status] ?? "border-slate-600 text-slate-300"
           }`}
       >
         {status}

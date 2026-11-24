@@ -238,7 +238,7 @@ export function NotificationsDropdown() {
 
       {/* Menú Desplegable */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-[#1E2D4A] bg-[#0E1626] shadow-2xl z-50 overflow-hidden flex flex-col max-h-[520px]">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 max-w-[calc(100vw-2rem)] rounded-2xl border border-[#1E2D4A] bg-[#0E1626] shadow-2xl z-50 overflow-hidden flex flex-col max-h-[520px]">
           {/* Cabecera */}
           <div className="flex items-center justify-between border-b border-[#1A2640] bg-[#0B111E] px-4 py-3">
             <div className="flex items-center gap-2">
@@ -309,7 +309,7 @@ export function NotificationsDropdown() {
           {/* Feedback mensaje temporal */}
           {feedback && (
             <div
-              className={`px-3 py-2 text-xs font-medium border-b ${feedback.type === "success"
+              className={`px-3 py-2 text-xs font-medium border-b break-words ${feedback.type === "success"
                 ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
                 : "bg-red-500/20 border-red-500/30 text-red-300"
                 }`}
@@ -364,7 +364,7 @@ export function NotificationsDropdown() {
                           >
                             {inv.competition.title}
                           </Link>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
+                          <p className="text-[11px] text-slate-400 mt-0.5 truncate">
                             Por <strong className="text-slate-300">@{inv.inviter.username}</strong>
                             {" · "}
                             {new Date(inv.createdAt).toLocaleDateString("es-ES")}
@@ -429,7 +429,7 @@ export function NotificationsDropdown() {
                         }
                       }}
                     >
-                      <p className={`text-xs leading-relaxed ${!n.isRead ? "text-white font-medium" : "text-slate-300"}`}>
+                      <p className={`text-xs leading-relaxed break-words [overflow-wrap:anywhere] ${!n.isRead ? "text-white font-medium" : "text-slate-300"}`}>
                         {n.content}
                       </p>
                       <div className="flex items-center gap-2 mt-1">

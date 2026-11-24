@@ -978,7 +978,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
                   </p>
                   <ul className="list-disc list-inside space-y-0.5 text-red-300/90">
                     {scheduleErrors.map((err, i) => (
-                      <li key={i}>{err}</li>
+                      <li key={i} className="break-words">{err}</li>
                     ))}
                   </ul>
                 </div>
@@ -1072,7 +1072,7 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
               </p>
               <ul className="mt-2 list-disc list-inside space-y-1 text-xs text-red-300/90">
                 {validationErrors.map((err, i) => (
-                  <li key={i}>{err}</li>
+                  <li key={i} className="break-words">{err}</li>
                 ))}
               </ul>
             </div>
@@ -1082,9 +1082,9 @@ export function EditCompetitionForm({ competition, onCancel, onSuccess }: EditFo
 
       {/* Error Alert from Server */}
       {errorMessage && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300 text-sm shadow-md animate-fadeIn">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300 text-sm shadow-md animate-fadeIn break-words">
           <p className="font-semibold text-red-200">Error del servidor:</p>
-          <p className="mt-1 text-xs text-red-300/90">{errorMessage}</p>
+          <p className="mt-1 text-xs text-red-300/90 break-words">{errorMessage}</p>
         </div>
       )}
 

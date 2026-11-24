@@ -183,7 +183,7 @@ function ProjectDetailContent() {
               </div>
               <div>
                 <h3 className="font-bold text-red-400">Proyecto Descalificado</h3>
-                <p className="mt-1 text-sm text-red-200/90 leading-relaxed">
+                <p className="mt-1 text-sm text-red-200/90 leading-relaxed break-words [overflow-wrap:anywhere]">
                   <span className="font-semibold text-red-300">Motivo:</span> {project.disqualificationReason}
                 </p>
                 {project.disqualifiedBy?.username && (
@@ -204,14 +204,14 @@ function ProjectDetailContent() {
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>
               </div>
 
-              <h1 className="text-3xl font-extrabold text-white tracking-tight">{project.title}</h1>
+              <h1 className="text-3xl font-extrabold text-white tracking-tight break-words [overflow-wrap:anywhere]">{project.title}</h1>
               
               <div className="mt-8 border-t border-[#455b7a]/50 pt-8">
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                   Descripción técnica
                 </h2>
-                <p className="whitespace-pre-wrap text-zinc-300 leading-relaxed">
+                <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-zinc-300 leading-relaxed">
                   {project.description}
                 </p>
               </div>
@@ -253,9 +253,9 @@ function ProjectDetailContent() {
 
               <div className="border-t border-[#455b7a]/40 pt-4">
                 <span className="block text-zinc-500 mb-1">Competencia</span>
-                <Link href={`/reto/${project.competitionId}`} className="flex items-start gap-2 font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                <Link href={`/reto/${project.competitionId}`} className="flex items-start gap-2 font-medium text-blue-400 hover:text-blue-300 transition-colors min-w-0">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                  <span className="leading-snug">{project.competition?.title || "Reto"}</span>
+                  <span className="leading-snug break-words">{project.competition?.title || "Reto"}</span>
                 </Link>
               </div>
 
@@ -381,7 +381,7 @@ function ProjectDetailContent() {
                           <p className="mt-2 text-sm text-slate-300">
                             Esta acción no se puede deshacer. El motivo que se registrará es:
                           </p>
-                          <p className="mt-2 whitespace-pre-wrap rounded-md bg-black/20 p-3 text-sm text-white">
+                          <p className="mt-2 whitespace-pre-wrap break-words [overflow-wrap:anywhere] rounded-md bg-black/20 p-3 text-sm text-white">
                             {disqualifyReason.trim()}
                           </p>
                         </div>
